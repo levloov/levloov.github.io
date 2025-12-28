@@ -3,86 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mobile Camera</title>
+    <title>Help Me</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         body {
-            background-color: #000;
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
             margin: 0;
+            height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            color: white;
-            font-family: sans-serif;
-        }
-
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover; /* Fills screen on phone */
-            transform: scaleX(-1); /* Mirror effect */
-        }
-
-        #errorMsg {
-            color: red;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px;
-            border-radius: 5px;
-            position: absolute;
-            top: 20px;
-            z-index: 100;
-            display: none;
-            max-width: 80%;
             text-align: center;
         }
 
-        button {
-            position: absolute;
-            bottom: 30px;
-            padding: 15px 30px;
-            font-size: 18px;
-            border-radius: 30px;
+        #helpBtn {
+            width: 260px;
+            height: 260px;
+            background-color: #ff4757;
+            color: white;
             border: none;
-            background: white;
-            color: black;
-            z-index: 10;
+            border-radius: 50%;
+            font-size: 28px;
+            font-weight: bold;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+            #helpBtn:active {
+                transform: scale(0.95);
+            }
+
+        .icon {
+            font-size: 60px;
+            margin-bottom: 10px;
+        }
+
+        #status {
+            margin-top: 30px;
+            font-size: 18px;
+            color: #555;
+            padding: 0 20px;
+        }
+
+        /* Hidden local previews just for debugging if needed */
+        video {
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            position: absolute;
         }
     </style>
 </head>
 <body>
 
-    <div id="errorMsg"></div>
-    <video id="webcam" autoplay playsinline muted></video>
-    <button id="startBtn">Start Camera</button>
+    <button id="helpBtn" onclick="startEmergencyCall()">
+        <span class="icon">🆘</span>
+        <br>HELP ME
+    </button>
+
+    <p id="status">Tap the button to show Screen & Camera</p>
+
+    <video id="localScreen" autoplay muted playsinline></video>
+    <video id="localFace" autoplay muted playsinline></video>
 
     <script>
-        const videoElement = document.getElementById('webcam');
-        const startBtn = document.getElementById('startBtn');
-        const errorMsg = document.getElementById('errorMsg');
+        // ==========================================
+        const TECHNICIAN_ID = "06293ca9-b16a-474d-bb11-65ce883915bc";
+        // ==========================================
 
-        async function startCamera() {
+        const peer = new Peer();
+        const btn = document.getElementById('helpBtn');
+        const statusText = document.getElementById('status');
+
+        async function startEmergencyCall() {
+            if (TECHNICIAN_ID.includes("PASTE")) {
+                alert("The technician ID is missing in the code!");
+                return;
+            }
+
+            btn.style.backgroundColor = "#ffa502";
+            statusText.innerText = "Requesting permissions... (Please click Allow)";
+
             try {
-                // Constraints specifically for mobile
-                const constraints = {
-                    audio: false,
-                    video: {
-                        facingMode: "user" // 'user' = front camera, 'environment' = back camera
-                    }
-                };
+                // --- STEP 1: GET SCREEN ---
+                // We do screen first because it's the hardest permission
+                const screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true,
+                    audio: false // We get audio from the camera/mic step
+                });
+                document.getElementById('localScreen').srcObject = screenStream;
 
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                videoElement.srcObject = stream;
-                startBtn.style.display = 'none';
-                errorMsg.style.display = 'none';
+                // --- STEP 2: GET FACE & MIC ---
+                const faceStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user' },
+                    audio: true
+                });
+                document.getElementById('localFace').srcObject = faceStream;
+
+                statusText.innerText = "Connecting to Technician...";
+
+                // --- STEP 3: CALL TWICE ---
+
+                // Call A: Send Screen
+                peer.call(TECHNICIAN_ID, screenStream, { metadata: { type: 'screen' } });
+
+                // Call B: Send Face + Audio
+                peer.call(TECHNICIAN_ID, faceStream, { metadata: { type: 'face' } });
+
+                // UI Success
+                btn.style.backgroundColor = "#2ed573";
+                btn.innerHTML = "<span class='icon'>📡</span><br>LIVE";
+                statusText.innerText = "Technician can see your screen and face!";
+
             } catch (err) {
-                // Show error on screen since phones don't have a console
-                errorMsg.style.display = 'block';
-                errorMsg.innerHTML = "<strong>Error:</strong> " + err.message + "<br><br>Make sure you are using <strong>HTTPS</strong>!";
+                console.error(err);
+                btn.style.backgroundColor = "#ff4757";
+                statusText.innerText = "Error: " + err.message;
+                alert("Failed. Please allow all permissions.");
             }
         }
-
-        startBtn.addEventListener('click', startCamera);
     </script>
 </body>
 </html>
