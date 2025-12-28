@@ -21,111 +21,123 @@
         #helpBtn {
             width: 260px;
             height: 260px;
-            background-color: #ff4757;
+            /* Starts Grey (Disabled) until internet connects */
+            background-color: #bdc3c7; 
             color: white;
             border: none;
             border-radius: 50%;
             font-size: 28px;
             font-weight: bold;
             box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            cursor: pointer;
+            cursor: not-allowed;
+            pointer-events: none; /* Prevents clicking until ready */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            transition: background-color 0.3s;
         }
 
-            #helpBtn:active {
-                transform: scale(0.95);
-            }
-
-        .icon {
-            font-size: 60px;
-            margin-bottom: 10px;
+        /* When the class 'ready' is added, it looks like a button */
+        #helpBtn.ready {
+            background-color: #ff4757;
+            cursor: pointer;
+            pointer-events: auto;
         }
 
-        #status {
-            margin-top: 30px;
-            font-size: 18px;
-            color: #555;
-            padding: 0 20px;
-        }
-
-        /* Hidden local previews just for debugging if needed */
-        video {
-            width: 1px;
-            height: 1px;
-            opacity: 0;
-            position: absolute;
-        }
+        #helpBtn:active { transform: scale(0.95); }
+        .icon { font-size: 60px; margin-bottom: 10px; }
+        #status { margin-top: 30px; font-size: 18px; color: #555; padding: 0 20px;}
+        
+        video { width: 1px; height: 1px; opacity: 0; position: absolute; }
     </style>
 </head>
 <body>
 
-    <button id="helpBtn" onclick="startEmergencyCall()">
-        <span class="icon">🆘</span>
-        <br>HELP ME
+    <button id="helpBtn">
+        <span class="icon">⏳</span>
+        <br>LOADING...
     </button>
-
-    <p id="status">Tap the button to show Screen & Camera</p>
+    
+    <p id="status">Connecting to service...</p>
 
     <video id="localScreen" autoplay muted playsinline></video>
     <video id="localFace" autoplay muted playsinline></video>
 
     <script>
         // ==========================================
-        const TECHNICIAN_ID = "06293ca9-b16a-474d-bb11-65ce883915bc";
+        const TECHNICIAN_ID = "06293ca9-b16a-474d-bb11-65ce883915bc"; 
         // ==========================================
 
         const peer = new Peer();
         const btn = document.getElementById('helpBtn');
         const statusText = document.getElementById('status');
+        const iconSpan = btn.querySelector('.icon');
+
+        // 1. WAIT for PeerJS to connect before enabling the button
+        // This is the #1 fix for mobile networks
+        peer.on('open', (id) => {
+            console.log('Connected with ID:', id);
+            btn.classList.add('ready');
+            btn.innerHTML = "<span class='icon'>🆘</span><br>HELP ME";
+            statusText.innerText = "Tap the button to call for help";
+            
+            // Add click listener only now
+            btn.onclick = startEmergencyCall;
+        });
+
+        peer.on('error', (err) => {
+            console.error(err);
+            statusText.innerText = "Connection Error. Please refresh.";
+        });
 
         async function startEmergencyCall() {
-            if (TECHNICIAN_ID.includes("PASTE")) {
-                alert("The technician ID is missing in the code!");
-                return;
-            }
-
-            btn.style.backgroundColor = "#ffa502";
-            statusText.innerText = "Requesting permissions... (Please click Allow)";
+            btn.style.backgroundColor = "#ffa502"; 
+            statusText.innerText = "Please tap 'Start Broadcast' or 'Allow'...";
 
             try {
-                // --- STEP 1: GET SCREEN ---
-                // We do screen first because it's the hardest permission
+                // --- STEP 1: SCREEN ---
+                // Phone will ask: "Start Recording/Casting?"
                 const screenStream = await navigator.mediaDevices.getDisplayMedia({
                     video: true,
-                    audio: false // We get audio from the camera/mic step
+                    audio: false 
                 });
                 document.getElementById('localScreen').srcObject = screenStream;
 
-                // --- STEP 2: GET FACE & MIC ---
+                statusText.innerText = "Screen shared! Now requesting camera...";
+
+                // Small delay to let the UI settle on older phones
+                await new Promise(r => setTimeout(r, 500));
+
+                // --- STEP 2: FACE & MIC ---
+                // Phone will ask: "Allow Camera?"
                 const faceStream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user' },
                     audio: true
                 });
                 document.getElementById('localFace').srcObject = faceStream;
 
-                statusText.innerText = "Connecting to Technician...";
+                statusText.innerText = "Calling Technician...";
 
                 // --- STEP 3: CALL TWICE ---
-
-                // Call A: Send Screen
-                peer.call(TECHNICIAN_ID, screenStream, { metadata: { type: 'screen' } });
-
-                // Call B: Send Face + Audio
-                peer.call(TECHNICIAN_ID, faceStream, { metadata: { type: 'face' } });
+                const call1 = peer.call(TECHNICIAN_ID, screenStream, { metadata: { type: 'screen' } });
+                const call2 = peer.call(TECHNICIAN_ID, faceStream, { metadata: { type: 'face' } });
 
                 // UI Success
-                btn.style.backgroundColor = "#2ed573";
+                btn.style.backgroundColor = "#2ed573"; 
                 btn.innerHTML = "<span class='icon'>📡</span><br>LIVE";
-                statusText.innerText = "Technician can see your screen and face!";
+                statusText.innerText = "Technician is watching!";
 
             } catch (err) {
                 console.error(err);
                 btn.style.backgroundColor = "#ff4757";
-                statusText.innerText = "Error: " + err.message;
-                alert("Failed. Please allow all permissions.");
+                // Friendly error message for elderly users
+                if(err.name === 'NotAllowedError') {
+                    statusText.innerText = "Permission denied. We need you to tap 'Allow'.";
+                    alert("Please tap the button again and click 'Allow' or 'Start Now'.");
+                } else {
+                    statusText.innerText = "Error: " + err.message;
+                }
             }
         }
     </script>
