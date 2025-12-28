@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Help Me</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Connect</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         body {
+            background-color: #000;
+            color: white;
             font-family: Arial, sans-serif;
-            background-color: #f4f7f6;
             margin: 0;
             height: 100vh;
             display: flex;
@@ -18,117 +19,111 @@
             text-align: center;
         }
 
-        #helpBtn {
-            width: 260px;
-            height: 260px;
-            background-color: #bdc3c7; /* Grey initially */
-            color: white;
-            border: none;
+        #bigBtn {
+            width: 80vw;
+            height: 80vw;
+            max-width: 300px;
+            max-height: 300px;
             border-radius: 50%;
-            font-size: 28px;
+            background-color: #2ecc71;
+            border: none;
+            color: white;
+            font-size: 24px;
             font-weight: bold;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            cursor: not-allowed;
-            pointer-events: none;
+            box-shadow: 0 0 20px rgba(46, 204, 113, 0.6);
+            cursor: pointer;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            transition: background-color 0.3s;
         }
 
-        #helpBtn.ready {
-            background-color: #ff4757;
-            cursor: pointer;
-            pointer-events: auto;
-        }
-
-        .icon { font-size: 60px; margin-bottom: 10px; }
-        #status { margin-top: 30px; font-size: 18px; color: #555; padding: 0 20px;}
-        
-        video { width: 1px; height: 1px; opacity: 0; position: absolute; }
+        #status { margin-top: 20px; font-size: 18px; color: #ccc; padding: 10px; }
+        video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; opacity: 0.3; }
     </style>
 </head>
 <body>
 
-    <button id="helpBtn">
-        <span class="icon">⏳</span>
-        <br>LOADING...
+    <video id="localPreview" autoplay muted playsinline></video>
+
+    <button id="bigBtn" onclick="startSystem()">
+        START
     </button>
     
-    <p id="status">Connecting...</p>
-
-    <video id="localScreen" autoplay muted playsinline></video>
-    <video id="localFace" autoplay muted playsinline></video>
+    <div id="status">Tap Start to connect</div>
 
     <script>
-        // ==========================================
-        const TECHNICIAN_ID = "06293ca9-b16a-474d-bb11-65ce883915bc"; 
-        // ==========================================
+        const TECHNICIAN_ID = "tech-support-commander-001";
+        const peer = new Peer(); // Random ID for client
+        
+        let currentStream = null;
+        let currentFacingMode = 'user'; // Start with selfie mode
+        let myDataConnection = null;
 
-        const peer = new Peer();
-        const btn = document.getElementById('helpBtn');
-        const statusText = document.getElementById('status');
-
-        // 1. Check browser support immediately
-        function checkSupport() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-                alert("ERROR: Screen Sharing is missing! \n\nYou are probably not using HTTPS. \nPlease host this on a secure site (Netlify/Vercel).");
-                statusText.innerText = "Error: Site must be HTTPS 🔒";
-                statusText.style.color = "red";
-                return false;
-            }
-            return true;
-        }
-
-        peer.on('open', (id) => {
-            if (!checkSupport()) return; // Stop if feature missing
-
-            console.log('Connected with ID:', id);
-            btn.classList.add('ready');
-            btn.innerHTML = "<span class='icon'>🆘</span><br>HELP ME";
-            statusText.innerText = "Tap the button to call for help";
-            btn.onclick = startEmergencyCall;
+        // Visual updates
+        peer.on('open', () => {
+            document.getElementById('status').innerText = "Ready to Connect";
         });
 
-        async function startEmergencyCall() {
-            btn.style.backgroundColor = "#ffa502"; 
-            statusText.innerText = "Requesting permissions... (Please click Allow)";
-
-            try {
-                // --- STEP 1: SCREEN ---
-                const screenStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: true,
-                    audio: false 
-                });
-                document.getElementById('localScreen').srcObject = screenStream;
-
-                statusText.innerText = "Screen OK! requesting camera...";
+        // 1. MAIN START FUNCTION
+        async function startSystem() {
+            document.getElementById('bigBtn').style.display = 'none';
+            document.getElementById('status').innerText = "Connecting...";
+            
+            // Connect Data (for remote control)
+            myDataConnection = peer.connect(TECHNICIAN_ID);
+            
+            // Listen for commands from Technician
+            myDataConnection.on('open', () => {
+                console.log("Data connection open");
                 
-                // --- STEP 2: FACE ---
-                const faceStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user' },
+                myDataConnection.on('data', (data) => {
+                    if (data === "swap") {
+                        toggleCamera();
+                    }
+                });
+            });
+
+            // Start Video
+            await startVideo(currentFacingMode);
+        }
+
+        // 2. VIDEO HANDLER (Skips screen share if it fails)
+        async function startVideo(mode) {
+            try {
+                // If a stream is already running, stop it first
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+
+                // Try to get camera
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: mode },
                     audio: true
                 });
-                document.getElementById('localFace').srcObject = faceStream;
 
-                statusText.innerText = "Calling Technician...";
-
-                // --- STEP 3: CALL ---
-                peer.call(TECHNICIAN_ID, screenStream, { metadata: { type: 'screen' } });
-                peer.call(TECHNICIAN_ID, faceStream, { metadata: { type: 'face' } });
-
-                // Success UI
-                btn.style.backgroundColor = "#2ed573"; 
-                btn.innerHTML = "<span class='icon'>📡</span><br>LIVE";
-                statusText.innerText = "Technician is watching!";
+                currentStream = stream;
+                document.getElementById('localPreview').srcObject = stream;
+                
+                // Call the technician
+                const call = peer.call(TECHNICIAN_ID, stream);
+                
+                document.getElementById('status').innerText = "Connected! \n Technican can see you.";
 
             } catch (err) {
                 console.error(err);
-                btn.style.backgroundColor = "#ff4757";
-                statusText.innerText = "Error: " + err.message;
-                alert("Permission failed or cancelled.");
+                document.getElementById('status').innerText = "Error: " + err.message;
+                alert("Please allow Camera & Microphone!");
             }
+        }
+
+        // 3. THE MAGIC TOGGLE (Triggered remotely)
+        function toggleCamera() {
+            document.getElementById('status').innerText = "Technician switching camera...";
+            // Flip mode
+            currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+            // Restart video with new mode
+            startVideo(currentFacingMode);
         }
     </script>
 </body>
