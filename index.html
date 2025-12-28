@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Camera</title>
+    <style>
+        body {
+            background-color: #000;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: white;
+            font-family: sans-serif;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Fills screen on phone */
+            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        #errorMsg {
+            color: red;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 5px;
+            position: absolute;
+            top: 20px;
+            z-index: 100;
+            display: none;
+            max-width: 80%;
+            text-align: center;
+        }
+
+        button {
+            position: absolute;
+            bottom: 30px;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 30px;
+            border: none;
+            background: white;
+            color: black;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="errorMsg"></div>
+    <video id="webcam" autoplay playsinline muted></video>
+    <button id="startBtn">Start Camera</button>
+
+    <script>
+        const videoElement = document.getElementById('webcam');
+        const startBtn = document.getElementById('startBtn');
+        const errorMsg = document.getElementById('errorMsg');
+
+        async function startCamera() {
+            try {
+                // Constraints specifically for mobile
+                const constraints = {
+                    audio: false,
+                    video: {
+                        facingMode: "user" // 'user' = front camera, 'environment' = back camera
+                    }
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElement.srcObject = stream;
+                startBtn.style.display = 'none';
+                errorMsg.style.display = 'none';
+            } catch (err) {
+                // Show error on screen since phones don't have a console
+                errorMsg.style.display = 'block';
+                errorMsg.innerHTML = "<strong>Error:</strong> " + err.message + "<br><br>Make sure you are using <strong>HTTPS</strong>!";
+            }
+        }
+
+        startBtn.addEventListener('click', startCamera);
+    </script>
+</body>
+</html>
