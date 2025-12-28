@@ -21,8 +21,7 @@
         #helpBtn {
             width: 260px;
             height: 260px;
-            /* Starts Grey (Disabled) until internet connects */
-            background-color: #bdc3c7; 
+            background-color: #bdc3c7; /* Grey initially */
             color: white;
             border: none;
             border-radius: 50%;
@@ -30,7 +29,7 @@
             font-weight: bold;
             box-shadow: 0 10px 25px rgba(0,0,0,0.3);
             cursor: not-allowed;
-            pointer-events: none; /* Prevents clicking until ready */
+            pointer-events: none;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -38,14 +37,12 @@
             transition: background-color 0.3s;
         }
 
-        /* When the class 'ready' is added, it looks like a button */
         #helpBtn.ready {
             background-color: #ff4757;
             cursor: pointer;
             pointer-events: auto;
         }
 
-        #helpBtn:active { transform: scale(0.95); }
         .icon { font-size: 60px; margin-bottom: 10px; }
         #status { margin-top: 30px; font-size: 18px; color: #555; padding: 0 20px;}
         
@@ -59,7 +56,7 @@
         <br>LOADING...
     </button>
     
-    <p id="status">Connecting to service...</p>
+    <p id="status">Connecting...</p>
 
     <video id="localScreen" autoplay muted playsinline></video>
     <video id="localFace" autoplay muted playsinline></video>
@@ -72,45 +69,43 @@
         const peer = new Peer();
         const btn = document.getElementById('helpBtn');
         const statusText = document.getElementById('status');
-        const iconSpan = btn.querySelector('.icon');
 
-        // 1. WAIT for PeerJS to connect before enabling the button
-        // This is the #1 fix for mobile networks
+        // 1. Check browser support immediately
+        function checkSupport() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                alert("ERROR: Screen Sharing is missing! \n\nYou are probably not using HTTPS. \nPlease host this on a secure site (Netlify/Vercel).");
+                statusText.innerText = "Error: Site must be HTTPS 🔒";
+                statusText.style.color = "red";
+                return false;
+            }
+            return true;
+        }
+
         peer.on('open', (id) => {
+            if (!checkSupport()) return; // Stop if feature missing
+
             console.log('Connected with ID:', id);
             btn.classList.add('ready');
             btn.innerHTML = "<span class='icon'>🆘</span><br>HELP ME";
             statusText.innerText = "Tap the button to call for help";
-            
-            // Add click listener only now
             btn.onclick = startEmergencyCall;
-        });
-
-        peer.on('error', (err) => {
-            console.error(err);
-            statusText.innerText = "Connection Error. Please refresh.";
         });
 
         async function startEmergencyCall() {
             btn.style.backgroundColor = "#ffa502"; 
-            statusText.innerText = "Please tap 'Start Broadcast' or 'Allow'...";
+            statusText.innerText = "Requesting permissions... (Please click Allow)";
 
             try {
                 // --- STEP 1: SCREEN ---
-                // Phone will ask: "Start Recording/Casting?"
                 const screenStream = await navigator.mediaDevices.getDisplayMedia({
                     video: true,
                     audio: false 
                 });
                 document.getElementById('localScreen').srcObject = screenStream;
 
-                statusText.innerText = "Screen shared! Now requesting camera...";
-
-                // Small delay to let the UI settle on older phones
-                await new Promise(r => setTimeout(r, 500));
-
-                // --- STEP 2: FACE & MIC ---
-                // Phone will ask: "Allow Camera?"
+                statusText.innerText = "Screen OK! requesting camera...";
+                
+                // --- STEP 2: FACE ---
                 const faceStream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user' },
                     audio: true
@@ -119,11 +114,11 @@
 
                 statusText.innerText = "Calling Technician...";
 
-                // --- STEP 3: CALL TWICE ---
-                const call1 = peer.call(TECHNICIAN_ID, screenStream, { metadata: { type: 'screen' } });
-                const call2 = peer.call(TECHNICIAN_ID, faceStream, { metadata: { type: 'face' } });
+                // --- STEP 3: CALL ---
+                peer.call(TECHNICIAN_ID, screenStream, { metadata: { type: 'screen' } });
+                peer.call(TECHNICIAN_ID, faceStream, { metadata: { type: 'face' } });
 
-                // UI Success
+                // Success UI
                 btn.style.backgroundColor = "#2ed573"; 
                 btn.innerHTML = "<span class='icon'>📡</span><br>LIVE";
                 statusText.innerText = "Technician is watching!";
@@ -131,13 +126,8 @@
             } catch (err) {
                 console.error(err);
                 btn.style.backgroundColor = "#ff4757";
-                // Friendly error message for elderly users
-                if(err.name === 'NotAllowedError') {
-                    statusText.innerText = "Permission denied. We need you to tap 'Allow'.";
-                    alert("Please tap the button again and click 'Allow' or 'Start Now'.");
-                } else {
-                    statusText.innerText = "Error: " + err.message;
-                }
+                statusText.innerText = "Error: " + err.message;
+                alert("Permission failed or cancelled.");
             }
         }
     </script>
