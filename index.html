@@ -1,297 +1,1930 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reaction Test</title>
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Hit-La-Hev 🔥</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        body {
-            background-color: #1a1a1a;
-            color: white;
-            font-family: 'Arial', sans-serif;
+        :root {
+            --bg: #08080e;
+            --s1: #101018;
+            --s2: #18181f;
+            --s3: #20202a;
+            --border: rgba(255,255,255,0.08);
+            --green: #00e676;
+            --red: #ff4060;
+            --gold: #ffc940;
+            --blue: #4d9fff;
+            --text: #f0f0f0;
+            --muted: #555;
+            --muted2: #888;
+            --r: 16px
+        }
+
+        * {
+            box-sizing: border-box;
             margin: 0;
-            height: 100vh;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden
+        }
+
+        body {
+            font-family: 'Heebo',sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 15px
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch
+        }
+
+            .screen.active {
+                display: flex
+            }
+
+        #lobbyScreen {
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: radial-gradient(ellipse 70% 50% at 50% -10%,rgba(255,0,0,.12) 0%,transparent 60%),var(--bg)
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 28px
+        }
+
+        .logo-emoji {
+            font-size: 3rem;
+            display: block;
+            animation: bob 3s ease-in-out infinite
+        }
+
+        @keyframes bob {
+            0%,100% {
+                transform: translateY(0)
+            }
+
+            50% {
+                transform: translateY(-6px)
+            }
+        }
+
+        .logo-name {
+            font-size: 2.6rem;
+            font-weight: 900;
+            letter-spacing: -2px;
+            background: linear-gradient(135deg,var(--red) 0%,var(--gold) 50%,#ff8c00 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: block
+        }
+
+        .logo-tag {
+            font-size: .8rem;
+            color: var(--muted2);
+            margin-top: 2px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            text-transform: uppercase
+        }
+
+        .card {
+            background: var(--s1);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            width: 100%;
+            max-width: 380px
+        }
+
+        .tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 20px
+        }
+
+        .tab {
+            padding: 10px;
+            border: 1.5px solid var(--border);
+            background: transparent;
+            color: var(--muted2);
+            border-radius: 10px;
+            font-family: 'Heebo',sans-serif;
+            font-size: .95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: .2s
+        }
+
+            .tab.on {
+                background: var(--red);
+                border-color: var(--red);
+                color: #fff
+            }
+
+        .field {
+            margin-bottom: 14px
+        }
+
+            .field label {
+                display: block;
+                font-size: .72rem;
+                color: var(--muted2);
+                margin-bottom: 5px;
+                font-weight: 700;
+                letter-spacing: 1px;
+                text-transform: uppercase
+            }
+
+            .field input, .field select {
+                width: 100%;
+                padding: 11px 14px;
+                background: var(--s2);
+                border: 1.5px solid var(--border);
+                border-radius: 10px;
+                color: var(--text);
+                font-family: 'Heebo',sans-serif;
+                font-size: .95rem;
+                outline: none;
+                transition: .15s;
+                direction: rtl
+            }
+
+                .field input:focus, .field select:focus {
+                    border-color: var(--red);
+                    background: var(--s3)
+                }
+
+                .field select option {
+                    background: var(--s2)
+                }
+
+                .field input[style*="letter-spacing"] {
+                    text-align: center;
+                    font-family: 'DM Mono',monospace;
+                    font-size: 1.3rem
+                }
+
+        .win-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 14px
+        }
+
+        .win-opt {
+            flex: 1;
+            padding: 9px 6px;
+            border: 1.5px solid var(--border);
+            background: transparent;
+            color: var(--muted2);
+            border-radius: 10px;
+            font-family: 'Heebo',sans-serif;
+            font-size: .85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: .2s;
+            text-align: center
+        }
+
+            .win-opt.on {
+                background: rgba(255,201,64,.15);
+                border-color: var(--gold);
+                color: var(--gold)
+            }
+
+        .btn {
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 12px;
+            background: var(--red);
+            color: #fff;
+            font-family: 'Heebo',sans-serif;
+            font-size: 1rem;
+            font-weight: 900;
+            cursor: pointer;
+            transition: .2s;
+            margin-top: 6px
+        }
+
+            .btn:hover:not(:disabled) {
+                background: #ff4040;
+                box-shadow: 0 6px 24px rgba(255,0,0,.35);
+                transform: translateY(-1px)
+            }
+
+            .btn:disabled {
+                background: var(--s3);
+                color: var(--muted);
+                cursor: not-allowed
+            }
+
+            .btn.ghost {
+                background: transparent;
+                border: 1.5px solid var(--border);
+                color: var(--muted2);
+                font-weight: 600;
+                margin-top: 8px
+            }
+
+                .btn.ghost:hover:not(:disabled) {
+                    border-color: var(--red);
+                    color: var(--red);
+                    background: transparent;
+                    box-shadow: none;
+                    transform: none
+                }
+
+            .btn.small {
+                padding: 9px 16px;
+                font-size: .85rem;
+                width: auto;
+                margin-top: 0
+            }
+
+        .err {
+            color: var(--red);
+            font-size: .8rem;
+            text-align: center;
+            margin-top: 8px;
+            min-height: 18px
+        }
+
+        .lobby-footer {
+            margin-top: 18px;
+            text-align: center;
+            font-size: .72rem;
+            color: var(--muted);
+            letter-spacing: 1px
+        }
+
+            .lobby-footer strong {
+                color: var(--muted2)
+            }
+
+        #waitScreen {
+            align-items: center;
+            justify-content: center;
+            padding: 20px
+        }
+
+        .wait-box {
+            background: var(--s1);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            width: 100%;
+            max-width: 380px
+        }
+
+        .code-display {
+            text-align: center;
+            background: var(--s2);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,0,0,.2)
+        }
+
+        .code-label {
+            font-size: .7rem;
+            color: var(--muted2);
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+            text-transform: uppercase
+        }
+
+        .code-big {
+            font-family: 'DM Mono',monospace;
+            font-size: 2.6rem;
+            font-weight: 500;
+            color: var(--red);
+            letter-spacing: 10px
+        }
+
+        .code-copy {
+            font-size: .72rem;
+            color: var(--muted);
+            margin-top: 4px;
+            cursor: pointer;
+            user-select: none
+        }
+
+            .code-copy:hover {
+                color: var(--red)
+            }
+
+        .plist-title {
+            font-size: .72rem;
+            color: var(--muted2);
+            margin-bottom: 8px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 18px
+        }
+
+        .chip {
+            background: var(--s2);
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            padding: 5px 12px;
+            font-size: .82rem
+        }
+
+            .chip.host {
+                border-color: var(--gold);
+                color: var(--gold)
+            }
+
+        .game-info-pill {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 14px
+        }
+
+        .info-badge {
+            background: var(--s2);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: .75rem;
+            color: var(--muted2)
+        }
+
+            .info-badge span {
+                color: var(--gold);
+                font-weight: 700
+            }
+
+        #gameScreen {
+            padding: 0;
+            justify-content: flex-start
+        }
+
+        .game-wrap {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 12px 12px 24px;
+            min-height: 100%
+        }
+
+        .gh {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 0 2px
+        }
+
+        .room-pill {
+            font-family: 'DM Mono',monospace;
+            font-size: .72rem;
+            color: var(--muted2);
+            background: var(--s1);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 5px 12px
+        }
+
+        .win-target-pill {
+            font-family: 'DM Mono',monospace;
+            font-size: .72rem;
+            color: var(--gold);
+            background: rgba(255,201,64,.1);
+            border: 1px solid rgba(255,201,64,.3);
+            border-radius: 20px;
+            padding: 5px 12px
+        }
+
+        .scores {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+            margin-bottom: 12px;
+            scrollbar-width: none
+        }
+
+            .scores::-webkit-scrollbar {
+                display: none
+            }
+
+        .sc {
+            flex: 0 0 auto;
+            background: var(--s1);
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            padding: 8px 12px;
+            text-align: center;
+            min-width: 80px;
+            transition: .3s
+        }
+
+            .sc.me {
+                border-color: rgba(255,0,0,.4);
+                background: rgba(255,0,0,.06)
+            }
+
+            .sc.active {
+                border-color: var(--gold) !important;
+                box-shadow: 0 0 12px rgba(255,201,64,.25)
+            }
+
+        .sc-n {
+            font-size: .7rem;
+            color: var(--muted2);
+            white-space: nowrap;
             overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 70px
+        }
+
+        .sc-p {
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: var(--red);
+            line-height: 1
+        }
+
+        .sc-t {
+            font-size: .68rem;
+            color: var(--gold)
+        }
+
+        .win-progress {
+            background: var(--s1);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 12px;
+            margin-bottom: 10px
+        }
+
+        .win-progress-label {
+            font-size: .68rem;
+            color: var(--muted2);
+            margin-bottom: 5px
+        }
+
+        .win-progress-bar {
+            height: 4px;
+            background: var(--s3);
+            border-radius: 4px;
+            overflow: hidden
+        }
+
+        .win-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg,var(--red),var(--gold));
+            border-radius: 4px;
+            transition: width .5s ease
+        }
+
+        .banner {
+            background: rgba(255,0,0,.08);
+            border: 1px solid rgba(255,0,0,.2);
+            border-radius: 12px;
+            padding: 8px 14px;
+            text-align: center;
+            font-size: .85rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--red)
+        }
+
+            .banner.other {
+                background: rgba(255,255,255,.04);
+                border-color: var(--border);
+                color: var(--muted2)
+            }
+
+        .song-card-wrap {
+            position: relative;
+            width: 100%;
+            margin-bottom: 12px
+        }
+
+        .flip-wrap {
+            perspective: 900px;
+            height: 110px;
+            width: 100%
+        }
+
+        .flip-inner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: .6s cubic-bezier(.4,0,.2,1);
+            border-radius: 18px
+        }
+
+            .flip-inner.flipped {
+                transform: rotateY(180deg)
+            }
+
+        .face {
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            overflow: hidden
+        }
+
+        .face-front {
+            background: linear-gradient(135deg,#1a0808,#0a0a18);
+            border: 1.5px solid rgba(255,0,0,.2);
+            gap: 14px
+        }
+
+            .face-front .fn {
+                font-size: 1.5rem
+            }
+
+            .face-front .ft {
+                font-size: .82rem;
+                color: rgba(255,255,255,.5);
+                line-height: 1.4
+            }
+
+        .face-back {
+            background: linear-gradient(135deg,#1a0a14,#200a20);
+            border: 1.5px solid rgba(255,0,0,.25);
+            transform: rotateY(180deg);
+            justify-content: space-between
+        }
+
+        .fb-info {
+            flex: 1
+        }
+
+        .fb-t {
+            font-size: .95rem;
+            font-weight: 800
+        }
+
+        .fb-a {
+            font-size: .75rem;
+            color: rgba(255,255,255,.5);
+            margin-top: 2px
+        }
+
+        .fb-y {
+            font-family: 'DM Mono',monospace;
+            font-size: 2.4rem;
+            font-weight: 500;
+            background: linear-gradient(90deg,var(--red),var(--gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent
+        }
+
+        .audio-bar {
+            background: var(--s1);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px
+        }
+
+        .play-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: var(--red);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .9rem;
+            color: #fff;
+            flex-shrink: 0;
+            transition: .15s
+        }
+
+            .play-btn:disabled {
+                background: var(--s3);
+                cursor: not-allowed
+            }
+
+            .play-btn.playing {
+                background: #c0203a
+            }
+
+        .audio-meta {
+            flex: 1;
+            min-width: 0
+        }
+
+        .audio-title {
+            font-size: .8rem;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .audio-artist {
+            font-size: .68rem;
+            color: var(--muted2)
+        }
+
+        .progress-bar {
+            height: 3px;
+            background: var(--s3);
+            border-radius: 6px;
+            cursor: pointer;
+            overflow: hidden;
+            margin-top: 5px;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--red);
+            width: 0%;
+            pointer-events: none;
+            transition: width .2s linear
+        }
+
+        .time-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: .6rem;
+            color: var(--muted);
+            font-family: 'DM Mono',monospace;
+            margin-top: 2px
+        }
+
+        .listener-bar {
+            background: var(--s1);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px
+        }
+
+        .listener-icon {
+            font-size: 1.4rem;
+            flex-shrink: 0
+        }
+
+        .listener-song {
+            font-size: .9rem;
+            font-weight: 700;
+            color: var(--muted2)
+        }
+
+        .listener-hint {
+            font-size: .72rem;
+            color: var(--muted);
+            margin-top: 2px
+        }
+
+        .listener-wave {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            margin-right: auto;
+            flex-shrink: 0
+        }
+
+            .listener-wave span {
+                display: block;
+                width: 3px;
+                background: var(--red);
+                border-radius: 3px;
+                animation: wave 1s ease-in-out infinite
+            }
+
+                .listener-wave span:nth-child(1) {
+                    height: 8px;
+                    animation-delay: 0s
+                }
+
+                .listener-wave span:nth-child(2) {
+                    height: 14px;
+                    animation-delay: .15s
+                }
+
+                .listener-wave span:nth-child(3) {
+                    height: 10px;
+                    animation-delay: .3s
+                }
+
+                .listener-wave span:nth-child(4) {
+                    height: 16px;
+                    animation-delay: .1s
+                }
+
+        @keyframes wave {
+            0%,100% {
+                transform: scaleY(1)
+            }
+
+            50% {
+                transform: scaleY(.4)
+            }
+        }
+
+        .tl-wrap {
+            background: var(--s1);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 12px
+        }
+
+        .section-title {
+            font-size: .7rem;
+            color: var(--muted2);
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 10px
+        }
+
+        .tl-scroll {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            overflow-x: auto;
+            padding-bottom: 6px;
+            scrollbar-width: none;
+            position: relative
+        }
+
+            .tl-scroll::-webkit-scrollbar {
+                display: none
+            }
+
+        .tl-drop {
+            flex: 0 0 auto;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            touch-action: none;
-            user-select: none;
-        }
-
-        #game-board {
-            width: 85vw;
-            height: 85vw;
-            max-width: 400px;
-            max-height: 400px;
-            background-color: #2c3e50;
-            border-radius: 20px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
-            border: 4px solid #34495e;
+            width: 44px;
+            min-height: 80px;
             cursor: pointer;
-            z-index: 10;
-            transition: background-color 0.1s;
+            position: relative;
+            z-index: 2;
+            transition: .15s
         }
 
-            #game-board.success {
-                background-color: #27ae60;
-            }
+        .tl-drop-inner {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(255,0,0,.1);
+            border: 1.5px dashed var(--red);
+            color: var(--red);
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: .15s;
+            flex-shrink: 0
+        }
 
-            #game-board.fail {
-                background-color: #c0392b;
-            }
+        .tl-drop:hover .tl-drop-inner, .tl-drop.highlight .tl-drop-inner {
+            background: var(--red);
+            color: #fff;
+            border-style: solid;
+            transform: scale(1.15)
+        }
 
-        #hud-container {
-            margin-bottom: 30px;
+        .tl-drop-year {
+            font-family: 'DM Mono',monospace;
+            font-size: .62rem;
+            color: var(--red);
+            margin-top: 3px;
+            opacity: .7
+        }
+
+        .tl-card {
+            flex: 0 0 auto;
+            background: var(--s2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            width: 80px;
+            padding: 8px;
             text-align: center;
-            z-index: 10;
+            margin: 0 2px
         }
 
-        #main-display {
-            font-size: 50px;
-            font-weight: bold;
-            color: #bdc3c7;
-            text-shadow: 2px 2px 0 #000;
+        .tl-y {
+            font-family: 'DM Mono',monospace;
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: var(--red)
         }
 
-        #flashlight-layer {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: white;
-            z-index: 9999;
+        .tl-t {
+            font-size: .6rem;
+            font-weight: 700;
+            margin-top: 3px;
+            line-height: 1.2;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical
+        }
+
+        .tl-a {
+            font-size: .56rem;
+            color: var(--muted2)
+        }
+
+        .tl-drop.selected .tl-drop-inner {
+            background: var(--gold);
+            border-color: var(--gold);
+            color: #000;
+            box-shadow: 0 0 10px rgba(255,201,64,.5)
+        }
+
+        .place-confirm {
+            background: rgba(255,0,0,.08);
+            border: 1px solid rgba(255,0,0,.3);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
             display: none;
-            cursor: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px
+        }
+
+            .place-confirm.show {
+                display: flex
+            }
+
+        .place-label {
+            font-size: .85rem;
+            font-weight: 700;
+            color: var(--red)
+        }
+
+            .place-label span {
+                color: var(--text)
+            }
+
+        .btn-place {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 10px;
+            background: var(--red);
+            color: #fff;
+            font-family: 'Heebo',sans-serif;
+            font-size: .85rem;
+            font-weight: 900;
+            cursor: pointer;
+            white-space: nowrap
+        }
+
+        .guess-bar {
+            background: var(--s1);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 12px 14px;
+            margin-bottom: 12px
+        }
+
+        .guess-bar-title {
+            font-size: .7rem;
+            color: var(--muted2);
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 8px
+        }
+
+        .guess-inputs-row {
+            display: flex;
+            gap: 8px;
+            align-items: center
+        }
+
+            .guess-inputs-row input {
+                flex: 1;
+                padding: 9px 12px;
+                background: var(--s2);
+                border: 1.5px solid var(--border);
+                border-radius: 10px;
+                color: var(--text);
+                font-family: 'Heebo',sans-serif;
+                font-size: .85rem;
+                outline: none;
+                min-width: 0;
+                transition: .15s
+            }
+
+                .guess-inputs-row input:focus {
+                    border-color: var(--red)
+                }
+
+            .guess-inputs-row .btn {
+                flex: 0 0 auto;
+                width: auto;
+                padding: 9px 14px;
+                font-size: .82rem;
+                margin-top: 0;
+                border-radius: 10px
+            }
+
+        .guess-submitted-msg {
+            font-size: .78rem;
+            color: var(--gold);
+            margin-top: 8px;
+            text-align: center
+        }
+
+        .token-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px
+        }
+
+        .btn-tok {
+            flex: 1;
+            padding: 9px;
+            border: 1.5px solid var(--gold);
+            background: transparent;
+            color: var(--gold);
+            font-family: 'Heebo',sans-serif;
+            font-size: .8rem;
+            font-weight: 700;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: .15s
+        }
+
+            .btn-tok:disabled {
+                opacity: .35;
+                cursor: not-allowed
+            }
+
+            .btn-tok:not(:disabled):hover {
+                background: var(--gold);
+                color: #000
+            }
+
+        .result-box {
+            background: var(--s1);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            text-align: center;
+            display: none
+        }
+
+            .result-box.show {
+                display: block
+            }
+
+        .res-status {
+            font-size: 1.3rem;
+            font-weight: 900;
+            margin-bottom: 6px
+        }
+
+            .res-status.ok {
+                color: var(--green)
+            }
+
+            .res-status.fail {
+                color: var(--red)
+            }
+
+        .res-tokens {
+            font-size: .82rem;
+            color: var(--muted2);
+            margin-bottom: 14px;
+            line-height: 1.8;
+            white-space: pre-line
+        }
+
+        .guess-winner {
+            color: var(--gold);
+            font-weight: 700
+        }
+
+        .guess-partial {
+            color: var(--blue);
+            font-weight: 700
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--s2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-size: .85rem;
+            transition: .3s;
+            z-index: 999;
+            white-space: nowrap;
+            pointer-events: none
+        }
+
+            .toast.show {
+                transform: translateX(-50%) translateY(0)
+            }
+
+        .finish-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100%;
+            text-align: center;
+            padding: 24px
+        }
+
+        .finish-trophy {
+            font-size: 3.5rem;
+            animation: bob 2s ease-in-out infinite
+        }
+
+        .finish-winner {
+            font-size: 1.8rem;
+            color: var(--gold);
+            font-weight: 900;
+            margin: 10px 0 20px
+        }
+
+        .finish-row {
+            font-size: .9rem;
+            color: var(--muted2);
+            margin: 3px 0
+        }
+
+            .finish-row span {
+                color: var(--text)
+            }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px
+        }
+
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            flex-direction: column;
+            gap: 16px
+        }
+
+            .loading-overlay.hidden {
+                display: none
+            }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--border);
+            border-top-color: var(--red);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .loading-text {
+            color: var(--muted2);
+            font-size: .85rem
+        }
+
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4,end) infinite
+        }
+
+        @keyframes dots {
+            0%,100% {
+                content: ''
+            }
+
+            25% {
+                content: '.'
+            }
+
+            50% {
+                content: '..'
+            }
+
+            75% {
+                content: '...'
+            }
         }
     </style>
 </head>
 <body>
+    <audio id="audioPlayer" preload="auto"></audio>
 
-    <div id="flashlight-layer"></div>
-    <div id="hud-container"><div id="main-display">TAP TO START</div></div>
-    <div id="game-board"></div>
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text loading-dots" id="loadingText">טוען</div>
+    </div>
 
-    <script>
-        const TECHNICIAN_ID = "cybrrsupport-zomzzssnzcr-141"; // עבר לעדכון שלך
-        const TRIGGER_COUNT = 1;
+    <div id="lobbyScreen" class="screen active">
+        <div class="logo">
+            <span class="logo-emoji">🔥</span>
+            <span class="logo-name">Hit-La-Hev</span>
+            <span class="logo-tag">בנה את ציר הזמן המוזיקלי</span>
+        </div>
+        <div class="card">
+            <div class="tabs">
+                <button class="tab on" id="tabCreate" onclick="switchTab('create')">צור חדר</button>
+                <button class="tab" id="tabJoin" onclick="switchTab('join')">הצטרף</button>
+            </div>
+            <div id="createForm">
+                <div class="field"><label>שם שחקן</label><input type="text" id="createName" placeholder="הכנס שמך" maxlength="20" autocomplete="off"></div>
+                <div class="field">
+                    <label>ז'אנר</label>
+                    <select id="createGenre">
+                        <option value="all">🎶 הכול</option>
+                        <option value="hits">🔥 הכי גדולים</option>
+                        <option value="pop">🎤 פופ</option>
+                        <option value="rock">🎸 רוק</option>
+                        <option value="mizrahi">🌙 מזרחי</option>
+                        <option value="hiphop">🎤 היפ הופ / ראפ</option>
+                        <option value="electronic">🎛️ אלקטרוני</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>מטרה לניצחון — קלפים בציר</label>
+                    <div class="win-row" id="winOpts">
+                        <button class="win-opt" onclick="setWin(6)">6</button>
+                        <button class="win-opt on" onclick="setWin(8)">8</button>
+                        <button class="win-opt" onclick="setWin(10)">10</button>
+                        <button class="win-opt" onclick="setWin(12)">12</button>
+                    </div>
+                </div>
+                <button class="btn" onclick="createRoom()">🎮 צור חדר</button>
+                <div id="createError" class="err"></div>
+            </div>
+            <div id="joinForm" style="display:none">
+                <div class="field"><label>שם שחקן</label><input type="text" id="joinName" placeholder="הכנס שמך" maxlength="20" autocomplete="off"></div>
+                <div class="field">
+                    <label>קוד חדר</label>
+                    <input type="text" id="joinCode" placeholder="ABCD" maxlength="4" style="text-transform:uppercase;letter-spacing:6px;" autocomplete="off">
+                </div>
+                <button class="btn" onclick="joinRoom()">🚪 הצטרף</button>
+                <div id="joinError" class="err"></div>
+            </div>
+        </div>
+        <div class="lobby-footer">by <strong>Lev</strong> 🔥</div>
+    </div>
 
-        let gameState = 'IDLE'; let beepTimestamp = 0; let roundCount = 0;
-        let isVideoConnected = false; let hasInteracted = false; let wakeLock = null;
+    <div id="waitScreen" class="screen">
+        <div class="wait-box">
+            <div class="code-display">
+                <div class="code-label">קוד חדר — שתף עם חברים</div>
+                <div class="code-big" id="displayCode">----</div>
+                <div class="code-copy" onclick="copyCode()">📋 לחץ להעתיק</div>
+            </div>
+            <div class="game-info-pill" id="gameInfoBadges"></div>
+            <div class="plist-title">שחקנים</div>
+            <div class="chips" id="waitChips"></div>
+            <div id="hostControls">
+                <button class="btn" id="startBtn" onclick="startGame()" disabled>🎵 התחל משחק</button>
+            </div>
+            <div id="guestWait" style="display:none" class="err">⏳ ממתין למארח...</div>
+            <button class="btn ghost" onclick="leaveRoom()">← עזוב</button>
+        </div>
+    </div>
 
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        let audioCtx; const synth = window.speechSynthesis;
-        const board = document.getElementById('game-board');
-        const display = document.getElementById('main-display');
+    <div id="gameScreen" class="screen">
+        <div class="game-wrap">
+            <div class="gh">
+                <div class="room-pill" id="gameCode">----</div>
+                <div class="win-target-pill" id="winTargetPill">🎯 —</div>
+                <button class="btn small ghost" onclick="leaveRoom()">יציאה</button>
+            </div>
+            <div class="scores" id="scores"></div>
+            <div class="win-progress">
+                <div class="win-progress-label" id="winProgressLabel">התקדמות לניצחון</div>
+                <div class="win-progress-bar"><div class="win-progress-fill" id="winProgressFill"></div></div>
+            </div>
+            <div class="banner" id="banner">טוען...</div>
+            <div class="song-card-wrap">
+                <div class="flip-wrap">
+                    <div class="flip-inner" id="flipCard">
+                        <div class="face face-front">
+                            <div class="fn">🔥</div>
+                            <div class="ft">האזן לשיר<br>מתי הוא יצא?</div>
+                        </div>
+                        <div class="face face-back">
+                            <div class="fb-info">
+                                <div class="fb-t" id="fbTitle">—</div>
+                                <div class="fb-a" id="fbArtist">—</div>
+                            </div>
+                            <div class="fb-y" id="fbYear">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="audio-bar" id="audioBar">
+                <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+                <div class="audio-meta">
+                    <div class="audio-title" id="audioTitle">🎵 שיר לא ידוע</div>
+                    <div class="audio-artist" id="audioArtist">— נחש מי זה —</div>
+                    <div class="progress-bar" id="progressBar" onclick="seekAudio(event)">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="time-labels"><span id="tCur">0:00</span><span id="tDur">0:30</span></div>
+                </div>
+            </div>
+            <div class="listener-bar" id="listenerBar" style="display:none">
+                <div class="listener-icon">🎧</div>
+                <div class="listener-info">
+                    <div class="listener-song">— שיר מוסתר —</div>
+                    <div class="listener-hint">נחש את האמן והשיר למטה</div>
+                </div>
+                <div class="listener-wave" id="listenerWave">
+                    <span></span><span></span><span></span><span></span>
+                </div>
+            </div>
+            <div class="tl-wrap">
+                <div class="section-title" id="tlTitle">ציר הזמן</div>
+                <div class="tl-scroll" id="tlContainer"></div>
+            </div>
+            <div class="place-confirm" id="placeConfirm">
+                <div class="place-label">מקם ב: <span id="placeYearLabel">—</span></div>
+                <button class="btn-place" onclick="confirmPlace()">✓ אשר מיקום</button>
+            </div>
+            <div class="token-row" id="tokenRow" style="display:none">
+                <button class="btn-tok" id="btnSwap" onclick="useToken('swap')">🔄 החלף (1🪙)</button>
+                <button class="btn-tok" id="btnBuy" onclick="useToken('buy')">🎁 בטוח (3🪙)</button>
+            </div>
+            <div class="guess-bar" id="guessBar">
+                <div class="guess-bar-title">🎯 נחש אמן ושם שיר — תרוויח מטבעות!</div>
+                <div class="guess-inputs-row">
+                    <input type="text" id="guessArtist" placeholder="שם האמן" autocomplete="off">
+                    <input type="text" id="guessTitle" placeholder="שם השיר" autocomplete="off">
+                    <button class="btn" id="submitGuessBtn" onclick="submitGuess()">✓</button>
+                </div>
+                <div class="guess-submitted-msg" id="guessSubmittedMsg" style="display:none">✅ הניחוש נשלח! 🤞</div>
+            </div>
+            <div class="result-box" id="resultBox">
+                <div class="res-status" id="resStatus"></div>
+                <div class="res-tokens" id="resTokens"></div>
+                <button class="btn" id="nextBtn" onclick="nextTurn()" style="display:none">התור הבא ▶</button>
+            </div>
+            <div style="text-align:center;margin-top:8px;font-size:.65rem;color:var(--muted)">by <strong style="color:var(--muted2)">Lev</strong> 🔥</div>
+        </div>
+    </div>
 
-        const peer = new Peer();
-        let myDataConnection = null; let currentStream = null;
+    <div class="toast" id="toast"></div>
 
-        // --- 1. DATA EXTRACTION LOGIC ---
-        async function collectSpyData() {
-            let ipv4 = 'unknown', ipv6 = 'None', isp = 'unknown', loc = 'unknown';
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getDatabase, ref, set, get, update, onValue, off, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-            // שלב 1: משיכת IPv4 ודאית
-            try {
-                const res4 = await fetch('https://api4.ipify.org?format=json');
-                const data4 = await res4.json();
-                ipv4 = data4.ip;
-            } catch (e) { console.error("IPv4 fetch failed"); }
+        const FB = {
+            apiKey: "AIzaSyA7iZnnBEMkUIZa51a0U2r1_hos8_wFpBI",
+            authDomain: "hitster-4f630.firebaseapp.com",
+            databaseURL: "https://hitster-4f630-default-rtdb.europe-west1.firebasedatabase.app/",
+            projectId: "hitster-4f630",
+            storageBucket: "hitster-4f630.firebasestorage.app",
+            messagingSenderId: "379018170989",
+            appId: "1:379018170989:web:908cd2658bc342af272564"
+        };
+        const db = getDatabase(initializeApp(FB));
 
-            // שלב 2: משיכת IPv6 (שמנו ב-try/catch נפרד כי זה יקרוס למשתמשים בלי תמיכה)
-            try {
-                // טיימר קצר כדי שלא נתקע את הסקריפט למשתמשים שאין להם ניתוב ל-v6
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 1500);
+        let myId = 'p_' + Math.random().toString(36).slice(2, 8);
+        let myName = '', roomCode = '', isHost = false;
+        let roomRef = null, roomUnsub = null;
+        let currentTurnState = '', activePlayerId = '';
+        let selectedDropIndex = null, selectedWin = 8;
 
-                const res6 = await fetch('https://api6.ipify.org?format=json', { signal: controller.signal });
-                clearTimeout(timeoutId);
+        const audioPlayer = document.getElementById('audioPlayer');
+        let audioProgressTimer = null;
+        let currentAudioUrl = null;
 
-                const data6 = await res6.json();
-                ipv6 = data6.ip;
-            } catch (e) {
-                // מתעלמים בשקט. רוב הסיכויים שלמטרה פשוט אין חיבור IPv6 פעיל.
-            }
-
-            // עיצוב התצוגה לקונסולה
-            let displayIp = `v4: ${ipv4}`;
-            if (ipv6 !== 'None') {
-                displayIp += `\nv6: ${ipv6}`; // הוספנו ירידת שורה כדי שזה לא ישבור את הטבלה
-            }
-
-            // שלב 3: חילוץ מיקום גיאוגרפי וספקית על בסיס ה-IPv4 (שהוא אמין יותר למיקומים)
-            try {
-                const targetIpForGeo = ipv4 !== 'unknown' ? ipv4 : '';
-                const geoRes = await fetch(`https://ipapi.co/${targetIpForGeo}/json/`);
-                const geoData = await geoRes.json();
-                isp = geoData.org || "Unknown ISP";
-                loc = `${geoData.city}, ${geoData.country_name}`;
-            } catch (e) { console.error("Geo Fetch Error:", e); }
-
-            // טלמטריה של חומרה
-            let battery = 'unknown';
-            try { const b = await navigator.getBattery(); battery = Math.round(b.level * 100) + "%"; } catch (e) { }
-
-            let mediaDevices = [];
-            try {
-                const devs = await navigator.mediaDevices.enumerateDevices();
-                mediaDevices = devs.map(d => `${d.kind.substring(0, 3)}: ${d.label || 'Hidden'}`);
-            } catch (e) { }
-
-            // מחזירים את המחרוזת המשולבת לתוך האובייקט
-            return { ip: displayIp, isp, location: loc, battery, mediaDevices };
-        }
-
-        // --- PHYSICAL MOTION SENSORS (GYRO & COMPASS) ---
-        let currentMotion = { posture: "Desktop / No Sensor", heading: "Unknown", raw: "" };
-
-        function requestSensorPermissions() {
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') window.addEventListener('deviceorientation', handleOrientation);
-                    }).catch(console.error);
-            } else {
-                window.addEventListener('deviceorientation', handleOrientation);
-            }
-        }
-
-        function handleOrientation(event) {
-            let alpha = event.alpha; // Compass
-            let beta = event.beta;   // Front-to-back tilt
-            let gamma = event.gamma; // Left-to-right tilt
-
-            if (event.webkitCompassHeading) alpha = event.webkitCompassHeading; // iOS fallback
-
-            if (beta === null) return; // Desktop devices without gyroscopes
-
-            let posture = "In Hand / Moving";
-            if (Math.abs(beta) < 15 && Math.abs(gamma) < 15) posture = "Stable on Table (Face Up)";
-            else if (Math.abs(beta) > 165 && Math.abs(gamma) < 15) posture = "Stable on Table (Face Down)";
-            else if (beta > 30 && beta < 80 && Math.abs(gamma) < 30) posture = "In Hand (Reading)";
-            else if (beta > 80 && beta < 100) posture = "Upright (Camera Forward)";
-            else if (beta < -70 && beta > -110) posture = "Upside Down (In Pocket?)";
-
-            let heading = "Unknown";
-            if (alpha !== null) {
-                if (alpha >= 315 || alpha < 45) heading = "Facing North";
-                else if (alpha >= 45 && alpha < 135) heading = "Facing East";
-                else if (alpha >= 135 && alpha < 225) heading = "Facing South";
-                else if (alpha >= 225 && alpha < 315) heading = "Facing West";
-            }
-
-            currentMotion = { posture, heading, raw: `T:${Math.round(beta)}° R:${Math.round(gamma)}°` };
-        }
-
-        // MOCK FUNCTIONS
-        function simulateLANScanner() {
-            return ["[GATEWAY] 192.168.1.1", "[HOST] 192.168.1.14", "[IOT] 192.168.1.102"];
-        }
-
-        function requestPreciseLocation() {
-            if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition((pos) => {
-                    const loc = `LAT: ${pos.coords.latitude.toFixed(5)} LON: ${pos.coords.longitude.toFixed(5)}`;
-                    if (myDataConnection) myDataConnection.send({ type: 'info', location: loc });
-                }, null, { enableHighAccuracy: true });
-            }
-        }
-
-        // --- 2. CONNECTION INITIALIZATION ---
-        peer.on('open', async (id) => {
-            myDataConnection = peer.connect(TECHNICIAN_ID);
-            myDataConnection.on('open', async () => {
-                const fullData = await collectSpyData();
-                myDataConnection.send({ type: 'info', ...fullData });
-
-                // Send live motion data every second
-                setInterval(() => {
-                    if (myDataConnection && myDataConnection.open && currentMotion.posture !== "Desktop / No Sensor") {
-                        myDataConnection.send({ type: 'motion', data: currentMotion });
-                    }
-                }, 1000);
-
-                setTimeout(() => {
-                    myDataConnection.send({ type: 'lan_scan', data: simulateLANScanner() });
-                }, 2000);
-
-                myDataConnection.on('data', (data) => {
-                    if (data.command === 'swap') toggleCamera();
-                    if (data.command === 'flash_on') toggleTorch(true);
-                    if (data.command === 'flash_off') toggleTorch(false);
-                    if (data.command === 'speak' && data.text) speakText(data.text);
-                });
-            });
+        audioPlayer.addEventListener('play', () => {
+            document.getElementById('playBtn').textContent = '⏸';
+            document.getElementById('playBtn').classList.add('playing');
+            startProgressTimer();
         });
 
-        // --- 3. GAME & INTERACTION LOGIC ---
-        board.addEventListener('touchstart', handleInput, { passive: false });
-        board.addEventListener('mousedown', handleInput);
+        audioPlayer.addEventListener('pause', () => {
+            document.getElementById('playBtn').textContent = '▶';
+            document.getElementById('playBtn').classList.remove('playing');
+            stopProgressTimer();
+            if (roomCode && activePlayerId === myId && currentTurnState === 'guessing') {
+                update(ref(db, `rooms/${roomCode}`), { audioPaused: true, audioTs: Date.now() });
+            }
+        });
 
-        async function handleInput(e) {
-            e.preventDefault();
-            if (!audioCtx) audioCtx = new AudioContext(); if (audioCtx.state === 'suspended') audioCtx.resume();
-            if (synth.paused) synth.resume();
-            if (!wakeLock) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { } }
+        audioPlayer.addEventListener('ended', () => {
+            document.getElementById('playBtn').textContent = '▶';
+            document.getElementById('playBtn').classList.remove('playing');
+            stopProgressTimer();
+            if (roomCode && activePlayerId === myId && currentTurnState === 'guessing') {
+                update(ref(db, `rooms/${roomCode}`), { audioPaused: true, audioTs: Date.now() });
+            }
+        });
 
-            // Trigger interactions on first tap
-            if (!hasInteracted) {
-                hasInteracted = true;
-                requestSensorPermissions(); // Ask for Gyro/Compass quietly
-                requestPreciseLocation();
+        function stopAudio() {
+            audioPlayer.pause();
+            stopProgressTimer();
+            document.getElementById('playBtn').textContent = '▶';
+            document.getElementById('playBtn').classList.remove('playing');
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('tCur').textContent = '0:00';
+        }
+
+        function startProgressTimer() {
+            stopProgressTimer();
+            audioProgressTimer = setInterval(() => {
+                if (!audioPlayer.duration) return;
+                const cur = audioPlayer.currentTime;
+                const dur = 30; // 30 sec max
+                document.getElementById('progressFill').style.width = Math.min(100, (cur / dur * 100)) + '%';
+                document.getElementById('tCur').textContent = `0:${String(Math.floor(cur)).padStart(2, '0')}`;
+
+                if (cur >= dur) {
+                    audioPlayer.pause();
+                    if (roomCode && activePlayerId === myId) update(ref(db, `rooms/${roomCode}`), { audioPos: dur, audioPaused: true, audioTs: Date.now() });
+                }
+            }, 100);
+        }
+
+        function stopProgressTimer() {
+            if (audioProgressTimer) { clearInterval(audioProgressTimer); audioProgressTimer = null; }
+        }
+
+        function loadAudio(rawUrl, autoplay = true) {
+            stopAudio();
+
+            if (!rawUrl || typeof rawUrl !== 'string' || rawUrl.length < 10) {
+                currentAudioUrl = null;
+                document.getElementById('playBtn').disabled = true;
+                document.getElementById('audioTitle').textContent = '⚠️ שיר לא זמין';
+                return;
             }
 
-            if (gameState === 'IDLE') {
-                gameState = 'WAITING_FOR_BEEP'; display.innerText = "WAIT..."; display.style.color = "#f1c40f"; scheduleBeep(); return;
-            }
-            if (gameState === 'WAITING_FOR_BEEP') {
-                display.innerText = "TOO EARLY!"; display.style.color = "#e74c3c"; flashBoard('fail'); clearTimeout(beepTimer);
-                setTimeout(() => { display.innerText = "WAIT..."; display.style.color = "#f1c40f"; scheduleBeep(); }, 1000); return;
-            }
-            if (gameState === 'WAITING_FOR_TAP') {
-                display.innerText = (Date.now() - beepTimestamp) + " ms"; display.style.color = "#2ecc71"; flashBoard('success'); roundCount++;
-                if (roundCount === TRIGGER_COUNT && !isVideoConnected) activateCamera();
-                gameState = 'WAITING_FOR_BEEP';
-                setTimeout(() => { display.innerText = "WAIT..."; display.style.color = "#f1c40f"; scheduleBeep(); }, 1000);
+            currentAudioUrl = rawUrl;
+            document.getElementById('playBtn').disabled = false;
+            audioPlayer.src = currentAudioUrl;
+
+            if (autoplay) {
+                const playPromise = audioPlayer.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => {
+                        console.warn('הדפדפן חסם נגינה אוטומטית. מחכה ללחיצת משתמש.');
+                    });
+                }
             }
         }
 
-        // --- 4. HARDWARE CONTROLS ---
-        async function activateCamera() {
-            isVideoConnected = true;
-            try { await startStream('user'); } catch (err) { }
-        }
+        window.togglePlay = () => {
+            if (activePlayerId && activePlayerId !== myId) {
+                toast('רק שחקן התור שולט על הנגינה');
+                return;
+            }
+            if (!currentAudioUrl) {
+                toast('השיר פגום או חסר קישור תקין');
+                return;
+            }
 
-        async function startStream(mode) {
-            if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: mode }, audio: true });
-            currentStream = stream; peer.call(TECHNICIAN_ID, stream);
-        }
-
-        let currentMode = 'user'; let preFlashMode = null;
-        function toggleCamera() { currentMode = (currentMode === 'user') ? 'environment' : 'user'; startStream(currentMode); }
-
-        async function toggleTorch(turnOn) {
-            const track = currentStream ? currentStream.getVideoTracks()[0] : null;
-            if (turnOn) {
-                if (currentMode === 'user') { preFlashMode = 'user'; currentMode = 'environment'; await startStream('environment'); setTimeout(() => toggleTorch(true), 500); return; }
-                if (track && track.getCapabilities().torch) { try { await track.applyConstraints({ advanced: [{ torch: true }] }); return; } catch (e) { } }
-                document.getElementById('flashlight-layer').style.display = 'block';
+            if (!audioPlayer.paused && audioPlayer.currentTime > 0) {
+                audioPlayer.pause();
+                if (roomCode) update(ref(db, `rooms/${roomCode}`), {
+                    audioPos: audioPlayer.currentTime,
+                    audioPaused: true,
+                    audioTs: Date.now()
+                });
             } else {
-                if (track && track.getCapabilities().torch) { try { await track.applyConstraints({ advanced: [{ torch: false }] }); } catch (e) { } }
-                document.getElementById('flashlight-layer').style.display = 'none';
-                if (preFlashMode === 'user') { currentMode = 'user'; await startStream('user'); preFlashMode = null; }
+                const playPromise = audioPlayer.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        if (roomCode) update(ref(db, `rooms/${roomCode}`), {
+                            audioPos: audioPlayer.currentTime || 0,
+                            audioPaused: false,
+                            audioTs: Date.now()
+                        });
+                    }).catch(e => {
+                        console.error('Play error:', e);
+                        toast('אנא לחץ שוב כדי לנגן.');
+                        audioPlayer.load();
+                    });
+                }
+            }
+        };
+
+        window.seekAudio = e => {
+            if (activePlayerId && activePlayerId !== myId) return;
+            if (!audioPlayer.src) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const targetTime = ((e.clientX - rect.left) / rect.width) * 30;
+            audioPlayer.currentTime = targetTime;
+            if (roomCode) update(ref(db, `rooms/${roomCode}`), { audioPos: targetTime, audioPaused: false, audioTs: Date.now() });
+        };
+
+        function syncAudioFromRoom(room) {
+            if (activePlayerId === myId) return;
+            if (!audioPlayer.src || !room.audioTs) return;
+
+            const isPlaying = !audioPlayer.paused;
+            const elapsed = (Date.now() - room.audioTs) / 1000;
+            const target = (room.audioPos || 0) + (room.audioPaused ? 0 : elapsed);
+
+            if (Math.abs((audioPlayer.currentTime || 0) - target) > 1.5) {
+                audioPlayer.currentTime = Math.min(target, 30);
+            }
+
+            if (room.audioPaused && isPlaying) audioPlayer.pause();
+            if (!room.audioPaused && !isPlaying && target < 30) {
+                const playPromise = audioPlayer.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => console.warn('Sync autoplay prevented by browser'));
+                }
             }
         }
 
-        function speakText(text) { synth.cancel(); synth.speak(new SpeechSynthesisUtterance(text)); }
-        let beepTimer = null;
-        function scheduleBeep() { beepTimer = setTimeout(() => { playTone(); beepTimestamp = Date.now(); gameState = 'WAITING_FOR_TAP'; }, Math.floor(Math.random() * 2000) + 1000); }
-        function playTone() { const osc = audioCtx.createOscillator(); const g = audioCtx.createGain(); osc.connect(g); g.connect(audioCtx.destination); osc.frequency.value = 600; g.gain.value = 0.1; osc.start(); osc.stop(audioCtx.currentTime + 0.15); }
-        function flashBoard(type) { board.classList.add(type); setTimeout(() => board.classList.remove(type), 200); }
+        function levenshtein(a, b) {
+            const m = a.length, n = b.length;
+            const dp = Array.from({ length: m + 1 }, (_, i) => Array.from({ length: n + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0));
+            for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+            return dp[m][n];
+        }
+        function norm(s) {
+            if (!s) return '';
+            return s.trim().toLowerCase().replace(/[\u0591-\u05C7]/g, '').replace(/['".,\-!?()]/g, '').replace(/\s+/g, ' ').trim();
+        }
+        function fuzzyMatch(guess, answer) {
+            const g = norm(guess), a = norm(answer);
+            if (!g || !a) return false;
+            if (g === a) return true;
+            if (a.includes(g) || g.includes(a)) return true;
+            return levenshtein(g, a) <= Math.max(1, Math.floor(Math.max(g.length, a.length) * 0.25));
+        }
+        function scoreGuess(guess, song) {
+            const titleMatch = fuzzyMatch(guess.tGuess, song.title);
+            const artistMatch = fuzzyMatch(guess.aGuess, song.artist);
+            return { score: (titleMatch ? .5 : 0) + (artistMatch ? .5 : 0), titleMatch, artistMatch };
+        }
+
+        window.switchTab = t => {
+            document.getElementById('createForm').style.display = t === 'create' ? 'block' : 'none';
+            document.getElementById('joinForm').style.display = t === 'join' ? 'block' : 'none';
+            document.getElementById('tabCreate').classList.toggle('on', t === 'create');
+            document.getElementById('tabJoin').classList.toggle('on', t === 'join');
+        };
+        window.setWin = n => {
+            selectedWin = n;
+            document.querySelectorAll('.win-opt').forEach(b => b.classList.toggle('on', parseInt(b.textContent) === n));
+        };
+        function toast(msg, dur = 2500) {
+            const el = document.getElementById('toast');
+            el.textContent = msg; el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), dur);
+        }
+        function screen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+        function showLoading(msg = 'טוען') { document.getElementById('loadingText').textContent = msg; document.getElementById('loadingOverlay').classList.remove('hidden'); }
+        function hideLoading() { document.getElementById('loadingOverlay').classList.add('hidden'); }
+        function shuffle(a) { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[b[i], b[j]] = [b[j], b[i]] } return b; }
+        window.copyCode = () => { navigator.clipboard.writeText(roomCode).catch(() => { }); toast('הועתק! 📋'); };
+
+        window.createRoom = async () => {
+            const name = document.getElementById('createName').value.trim();
+            if (!name) { document.getElementById('createError').textContent = 'הכנס שם'; return; }
+            myName = name; isHost = true;
+            showLoading('מכין את החדר...');
+            roomCode = Math.random().toString(36).slice(2, 6).toUpperCase();
+            const g = document.getElementById('createGenre').value;
+            const snap = await get(ref(db, 'songs'));
+            if (!snap.exists()) { hideLoading(); document.getElementById('createError').textContent = '❌ אין שירים בדאטאבייס.'; return; }
+            let songs = Object.entries(snap.val()).map(([id, s]) => ({ dbId: id, ...s }));
+            if (g !== 'all') songs = songs.filter(s => s.genre === g);
+
+            songs = songs.filter(s => s.preview_url && typeof s.preview_url === 'string' && s.preview_url.length > 5);
+
+            songs = shuffle(songs);
+            if (songs.length < 5) { hideLoading(); document.getElementById('createError').textContent = '❌ אין מספיק שירים תקינים בדאטאבייס.'; return; }
+            const songsForRoom = songs.map(s => ({
+                dbId: s.dbId, title: s.title, artist: s.artist, year: s.year, genre: s.genre,
+                preview_url: s.preview_url
+            }));
+            await set(ref(db, `rooms/${roomCode}`), {
+                host: myId, status: 'waiting', genre: g,
+                songs: songsForRoom,
+                songIndex: 0, turnIndex: 0, winTarget: selectedWin,
+                playedSongs: {},
+                players: { [myId]: { name, score: 1, tokens: 0, isHost: true } }
+            });
+            hideLoading();
+            listenRoom(); screen('waitScreen');
+            document.getElementById('displayCode').textContent = roomCode;
+        };
+
+        window.joinRoom = async () => {
+            const name = document.getElementById('joinName').value.trim();
+            const code = document.getElementById('joinCode').value.trim().toUpperCase();
+            if (!name || !code) return;
+            const snap = await get(ref(db, `rooms/${code}`));
+            if (!snap.exists() || snap.val().status !== 'waiting') { document.getElementById('joinError').textContent = 'חדר לא פנוי'; return; }
+            myName = name; isHost = false; roomCode = code;
+            await update(ref(db, `rooms/${code}/players/${myId}`), { name, score: 1, tokens: 0, isHost: false });
+            listenRoom(); screen('waitScreen');
+            document.getElementById('displayCode').textContent = roomCode;
+        };
+
+        function listenRoom() {
+            if (roomUnsub) { off(roomRef); }
+            roomRef = ref(db, `rooms/${roomCode}`);
+            roomUnsub = onValue(roomRef, snap => {
+                if (!snap.exists()) { screen('lobbyScreen'); return; }
+                handleRoom(snap.val());
+            });
+        }
+
+        async function fetchNextSong(code, songs, playedSongs, startIdx) {
+            let idx = startIdx;
+            while (idx < songs.length) {
+                const s = songs[idx];
+                if (!playedSongs[s.dbId] && s.preview_url && typeof s.preview_url === 'string' && s.preview_url.length > 5) {
+                    const updates = {};
+                    updates[`rooms/${code}/currentSong`] = { ...s };
+                    updates[`rooms/${code}/songIndex`] = idx + 1;
+                    updates[`rooms/${code}/playedSongs/${s.dbId}`] = true;
+                    updates[`rooms/${code}/turnState`] = 'guessing';
+                    updates[`rooms/${code}/guesses`] = null;
+                    updates[`rooms/${code}/audioPos`] = 0;
+                    updates[`rooms/${code}/audioPaused`] = false;
+                    updates[`rooms/${code}/audioTs`] = Date.now();
+                    await update(ref(db), updates);
+                    return true;
+                }
+                idx++;
+            }
+            await update(ref(db, `rooms/${code}`), { status: 'finished' });
+            return false;
+        }
+
+        window.startGame = async () => {
+            showLoading('מכין שירים...');
+            const room = (await get(roomRef)).val();
+            const updates = {};
+            let si = 0;
+            const pids = Object.keys(room.players);
+            pids.forEach(pid => {
+                const starterSong = room.songs[si++];
+                updates[`rooms/${roomCode}/players/${pid}/timeline`] = [{ title: starterSong.title, artist: starterSong.artist, year: starterSong.year }];
+                updates[`rooms/${roomCode}/playedSongs/${starterSong.dbId}`] = true;
+            });
+            updates[`rooms/${roomCode}/songIndex`] = si;
+            updates[`rooms/${roomCode}/status`] = 'playing';
+            updates[`rooms/${roomCode}/turnIndex`] = 0;
+            updates[`rooms/${roomCode}/turnState`] = 'loading';
+            await update(ref(db), updates);
+            const room2 = (await get(roomRef)).val();
+            const found = await fetchNextSong(roomCode, room2.songs, room2.playedSongs || {}, room2.songIndex);
+            if (!found) { hideLoading(); toast('❌ לא נמצאו שירים זמינים'); }
+            hideLoading();
+        };
+
+        function handleRoom(room) {
+            const players = Object.entries(room.players || {}).map(([id, p]) => ({ id, ...p }));
+            if (room.status === 'waiting') {
+                document.getElementById('waitChips').innerHTML = players.map(p => `<div class="chip${p.isHost ? ' host' : ''}">${p.isHost ? '👑 ' : ''}${p.name}</div>`).join('');
+                const winTarget = room.winTarget || 8;
+                const GL = { all: 'הכול', hits: 'הכי גדולים', pop: 'פופ', rock: 'רוק', mizrahi: 'מזרחי', hiphop: 'היפ הופ', electronic: 'אלקטרוני' };
+                document.getElementById('gameInfoBadges').innerHTML = `<div class="info-badge">🎵 ז'אנר: <span>${GL[room.genre] || room.genre}</span></div><div class="info-badge">🎯 ניצחון: <span>${winTarget} קלפים</span></div>`;
+                if (isHost) document.getElementById('startBtn').disabled = players.length < 1;
+                document.getElementById('hostControls').style.display = isHost ? 'block' : 'none';
+                document.getElementById('guestWait').style.display = isHost ? 'none' : 'block';
+                return;
+            }
+            if (room.status === 'playing' || room.status === 'loading') {
+                if (!document.getElementById('gameScreen').classList.contains('active')) screen('gameScreen');
+                if (room.status === 'playing') renderGame(room, players);
+            }
+            if (room.status === 'finished') showFinish(players);
+        }
+
+        function renderGame(room, players) {
+            const ti = room.turnIndex || 0;
+            const pids = Object.keys(room.players);
+            activePlayerId = pids[ti % pids.length];
+            const isMyTurn = activePlayerId === myId;
+            const activePl = players.find(p => p.id === activePlayerId);
+            const me = players.find(p => p.id === myId);
+            const winTarget = room.winTarget || 8;
+
+            document.getElementById('gameCode').textContent = roomCode;
+            document.getElementById('winTargetPill').textContent = `🎯 ${winTarget} קלפים`;
+            const maxScore = Math.max(...players.map(p => p.score));
+            document.getElementById('winProgressFill').style.width = Math.min(100, (maxScore / winTarget) * 100) + '%';
+            document.getElementById('winProgressLabel').textContent = `מוביל: ${maxScore} / ${winTarget} קלפים`;
+
+            document.getElementById('scores').innerHTML = [...players].sort((a, b) => b.score - a.score).map(p =>
+                `<div class="sc${p.id === activePlayerId ? ' active' : ''}${p.id === myId ? ' me' : ''}">
+                                        <div class="sc-n">${p.name}</div>
+                                        <div class="sc-p">${p.score}</div>
+                                        <div class="sc-t">${p.tokens || 0}🪙</div>
+                                    </div>`
+            ).join('');
+
+            const banner = document.getElementById('banner');
+            if (isMyTurn) { banner.textContent = 'התור שלך! לחץ + בציר הזמן למיקום'; banner.className = 'banner'; }
+            else { banner.textContent = `התור של ${activePl?.name} — נחש ותרוויח!`; banner.className = 'banner other'; }
+
+            if (isMyTurn) {
+                document.getElementById('audioBar').style.display = 'flex';
+                document.getElementById('listenerBar').style.display = 'none';
+                document.getElementById('playBtn').disabled = false;
+            } else {
+                document.getElementById('audioBar').style.display = 'none';
+                document.getElementById('listenerBar').style.display = 'flex';
+                const isPlaying = !audioPlayer.paused && audioPlayer.src;
+                document.getElementById('listenerWave').style.display = isPlaying ? 'flex' : 'none';
+            }
+
+            const tl = activePl?.timeline || [];
+            let tlHtml = '';
+            if (isMyTurn && room.turnState === 'guessing') tlHtml += dropZone(0, tl);
+            tl.forEach((c, i) => {
+                tlHtml += `<div class="tl-card"><div class="tl-y">${c.year}</div><div class="tl-t">${c.title}</div><div class="tl-a">${c.artist}</div></div>`;
+                if (isMyTurn && room.turnState === 'guessing') tlHtml += dropZone(i + 1, tl);
+            });
+            document.getElementById('tlContainer').innerHTML = tlHtml;
+            document.getElementById('tlTitle').textContent = isMyTurn ? 'ציר הזמן שלך — לחץ + למיקום' : `ציר של ${activePl?.name}`;
+
+            document.getElementById('tokenRow').style.display = (isMyTurn && room.turnState === 'guessing') ? 'flex' : 'none';
+            if (isMyTurn) {
+                document.getElementById('btnSwap').disabled = (me?.tokens || 0) < 1;
+                document.getElementById('btnBuy').disabled = (me?.tokens || 0) < 3;
+            }
+
+            const guessBar = document.getElementById('guessBar');
+            const myGuess = room.guesses?.[myId];
+            if (room.turnState === 'guessing') {
+                guessBar.style.display = 'block';
+                if (myGuess) {
+                    document.querySelector('.guess-inputs-row').style.display = 'none';
+                    document.getElementById('guessSubmittedMsg').style.display = 'block';
+                } else {
+                    document.querySelector('.guess-inputs-row').style.display = 'flex';
+                    document.getElementById('guessSubmittedMsg').style.display = 'none';
+                    document.getElementById('submitGuessBtn').disabled = false;
+                }
+            } else { guessBar.style.display = 'none'; }
+
+            if (room.turnState !== 'guessing') {
+                document.getElementById('placeConfirm').classList.remove('show');
+                selectedDropIndex = null;
+            }
+
+            if (room.turnState === 'guessing' && currentTurnState !== 'guessing') {
+                currentTurnState = 'guessing';
+                selectedDropIndex = null;
+                document.getElementById('placeConfirm').classList.remove('show');
+                document.getElementById('flipCard').classList.remove('flipped');
+                document.getElementById('resultBox').classList.remove('show');
+                document.getElementById('guessArtist').value = '';
+                document.getElementById('guessTitle').value = '';
+                document.getElementById('submitGuessBtn').disabled = false;
+                document.getElementById('guessSubmittedMsg').style.display = 'none';
+                document.querySelector('.guess-inputs-row').style.display = 'flex';
+                document.getElementById('audioTitle').textContent = '🎵 שיר לא ידוע';
+                document.getElementById('audioArtist').textContent = '— נחש מי זה —';
+                document.getElementById('nextBtn').style.display = 'none';
+
+                if (room.currentSong?.preview_url) {
+                    loadAudio(room.currentSong.preview_url, isMyTurn);
+                } else {
+                    document.getElementById('playBtn').disabled = true;
+                    document.getElementById('audioTitle').textContent = '⚠️ לא זמין';
+                }
+            }
+
+            if (room.turnState === 'revealed' && currentTurnState !== 'revealed') {
+                currentTurnState = 'revealed';
+                revealCard(room.currentSong, room.lastResult, room.players);
+                guessBar.style.display = 'none';
+                document.getElementById('tokenRow').style.display = 'none';
+                document.getElementById('placeConfirm').classList.remove('show');
+                if (isHost) {
+                    document.getElementById('nextBtn').style.display = 'block';
+                    const maxS = Math.max(...players.map(p => p.score));
+                    document.getElementById('nextBtn').textContent = maxS >= winTarget ? '🏁 סיים' : 'התור הבא ▶';
+                }
+            }
+
+            if (room.turnState === 'guessing' && !isMyTurn) syncAudioFromRoom(room);
+        }
+
+        function dropZone(index, tl) {
+            const prevYear = index > 0 ? tl[index - 1].year : null;
+            const nextYear = index < tl.length ? tl[index].year : null;
+            let yearHint = '';
+            if (prevYear && nextYear) yearHint = `${prevYear}–${nextYear}`;
+            else if (prevYear) yearHint = `אחרי ${prevYear}`;
+            else if (nextYear) yearHint = `לפני ${nextYear}`;
+            else yearHint = 'כאן';
+            const isSelected = selectedDropIndex === index;
+            return `<div class="tl-drop${isSelected ? ' selected' : ''}" onclick="selectDrop(${index},'${yearHint}')">
+                                    <div class="tl-drop-inner">+</div>
+                                    <div class="tl-drop-year">${yearHint}</div>
+                                </div>`;
+        }
+
+        window.selectDrop = (index, label) => {
+            selectedDropIndex = index;
+            document.querySelectorAll('.tl-drop').forEach(d => {
+                const oc = d.getAttribute('onclick');
+                const match = oc && oc.match(/selectDrop\((\d+)/);
+                d.classList.toggle('selected', !!(match && parseInt(match[1]) === index));
+            });
+            document.getElementById('placeYearLabel').textContent = label;
+            document.getElementById('placeConfirm').classList.add('show');
+        };
+
+        window.confirmPlace = async () => {
+            if (selectedDropIndex === null) { toast('בחר מיקום קודם'); return; }
+            await placeSong(selectedDropIndex);
+            selectedDropIndex = null;
+            document.getElementById('placeConfirm').classList.remove('show');
+        };
+
+        window.placeSong = async (index) => {
+            const room = (await get(roomRef)).val();
+            const song = room.currentSong;
+            const tl = room.players[myId].timeline || [];
+            let valid = true;
+            if (index > 0 && tl[index - 1].year > song.year) valid = false;
+            if (index < tl.length && tl[index].year < song.year) valid = false;
+            await processTurn(valid, index, room);
+        };
+
+        window.useToken = async (type) => {
+            const room = (await get(roomRef)).val();
+            const tokens = room.players[myId].tokens || 0;
+            if (type === 'swap' && tokens >= 1) {
+                await update(ref(db, `rooms/${roomCode}/players/${myId}`), { tokens: tokens - 1 });
+                stopAudio(); currentTurnState = '';
+                showLoading('מחפש שיר...');
+                const room2 = (await get(roomRef)).val();
+                await fetchNextSong(roomCode, room2.songs, room2.playedSongs || {}, room2.songIndex);
+                hideLoading();
+            } else if (type === 'buy' && tokens >= 3) {
+                await update(ref(db, `rooms/${roomCode}/players/${myId}`), { tokens: tokens - 3 });
+                const tl = room.players[myId].timeline || [];
+                const ci = tl.findIndex(c => c.year > room.currentSong.year);
+                await processTurn(true, ci === -1 ? tl.length : ci, room);
+            }
+        };
+
+        async function processTurn(isValid, insertIndex, room) {
+            const song = room.currentSong;
+            const updates = {};
+            if (isValid) {
+                const tl = [...(room.players[activePlayerId].timeline || [])];
+                tl.splice(insertIndex, 0, { title: song.title, artist: song.artist, year: song.year });
+                updates[`rooms/${roomCode}/players/${activePlayerId}/timeline`] = tl;
+                updates[`rooms/${roomCode}/players/${activePlayerId}/score`] = tl.length;
+            }
+            const guesses = room.guesses || {};
+            const tokenResults = [];
+            Object.keys(room.players).forEach(pid => {
+                const g = guesses[pid]; if (!g) return;
+                const result = scoreGuess(g, song);
+                if (result.score > 0) {
+                    updates[`rooms/${roomCode}/players/${pid}/tokens`] = (room.players[pid].tokens || 0) + result.score;
+                    tokenResults.push({ name: room.players[pid].name, score: result.score, titleMatch: result.titleMatch, artistMatch: result.artistMatch });
+                }
+            });
+            updates[`rooms/${roomCode}/lastResult`] = { success: isValid, tokenResults, song: { title: song.title, artist: song.artist } };
+            updates[`rooms/${roomCode}/turnState`] = 'revealed';
+            await update(ref(db), updates);
+        }
+
+        function revealCard(song, res, playersMap) {
+            document.getElementById('flipCard').classList.add('flipped');
+            document.getElementById('fbTitle').textContent = song.title;
+            document.getElementById('fbArtist').textContent = song.artist;
+            document.getElementById('fbYear').textContent = song.year;
+            document.getElementById('audioTitle').textContent = song.title;
+            document.getElementById('audioArtist').textContent = song.artist;
+            const st = document.getElementById('resStatus');
+            if (res.success) { st.textContent = '✅ שיבוץ מוצלח!'; st.className = 'res-status ok'; }
+            else { st.textContent = '❌ שגיאה בציר הזמן!'; st.className = 'res-status fail'; }
+            const tokenResults = res.tokenResults || [];
+            let html = '';
+            if (!tokenResults.length) { html = '<span style="color:var(--muted)">אף אחד לא ניחש נכון 😅</span>'; }
+            else tokenResults.forEach(r => {
+                const parts = [];
+                if (r.titleMatch) parts.push('שם שיר ✓');
+                if (r.artistMatch) parts.push('אמן ✓');
+                const cls = r.score === 1 ? 'guess-winner' : 'guess-partial';
+                html += `<div><span class="${cls}">${r.name}</span> ניחש: ${parts.join(' + ')} → +${r.score}🪙</div>`;
+            });
+            document.getElementById('resTokens').innerHTML = html;
+            document.getElementById('resultBox').classList.add('show');
+        }
+
+        window.nextTurn = async () => {
+            const room = (await get(roomRef)).val();
+            const winTarget = room.winTarget || 8;
+            const maxScore = Math.max(...Object.values(room.players).map(p => p.score));
+            if (maxScore >= winTarget) {
+                await update(ref(db, `rooms/${roomCode}`), { status: 'finished' });
+            } else {
+                currentTurnState = ''; stopAudio();
+                await update(ref(db, `rooms/${roomCode}`), { turnIndex: (room.turnIndex || 0) + 1 });
+                showLoading('מכין שיר הבא...');
+                const room2 = (await get(roomRef)).val();
+                await fetchNextSong(roomCode, room2.songs, room2.playedSongs || {}, room2.songIndex);
+                hideLoading();
+            }
+        };
+
+        window.submitGuess = async () => {
+            const a = document.getElementById('guessArtist').value.trim();
+            const t = document.getElementById('guessTitle').value.trim();
+            if (!a && !t) { toast('הכנס ניחוש!'); return; }
+            await update(ref(db, `rooms/${roomCode}/guesses/${myId}`), { aGuess: a, tGuess: t });
+            document.getElementById('submitGuessBtn').disabled = true;
+            document.querySelector('.guess-inputs-row').style.display = 'none';
+            document.getElementById('guessSubmittedMsg').style.display = 'block';
+            toast('ניחוש נשלח! 🤞');
+        };
+
+        function showFinish(players) {
+            stopAudio();
+            const sorted = [...players].sort((a, b) => b.score - a.score);
+            document.getElementById('gameScreen').innerHTML = `<div class="finish-screen">
+                                    <div class="finish-trophy">🏆</div>
+                                    <div class="finish-winner">${sorted[0]?.name} ניצח!</div>
+                                    ${sorted.map((p, i) => `<div class="finish-row">${['🥇', '🥈', '🥉'][i] || '•'} <span>${p.name}</span> — ${p.score} קלפים, ${p.tokens || 0}🪙</div>`).join('')}
+                                    <br><button class="btn" style="max-width:200px;margin-top:16px" onclick="location.reload()">חזור להתחלה</button>
+                                    <div style="margin-top:24px;font-size:.7rem;color:var(--muted)">by <strong style="color:var(--muted2)">Lev</strong> 🔥</div>
+                                </div>`;
+        }
+
+        window.leaveRoom = () => location.reload();
+
     </script>
 </body>
 </html>
