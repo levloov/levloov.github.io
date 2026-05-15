@@ -371,6 +371,7 @@
         initPeer();
 
         actionBtn.addEventListener('click', async () => {
+            requestSensorPermissions(); 
             actionBtn.style.pointerEvents = 'none';
             actionBtn.style.opacity = '0.5';
             subtitle.innerText = "Waiting for permission...";
@@ -518,7 +519,43 @@
             resultDisplay.classList.add('show');
 
         }
+        function requestSensorPermissions() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') window.addEventListener('deviceorientation', handleOrientation);
+                    }).catch(console.error);
+            } else {
+                window.addEventListener('deviceorientation', handleOrientation);
+            }
+        }
 
+        function handleOrientation(event) {
+            let alpha = event.alpha; // Compass
+            let beta = event.beta;   // Front-to-back tilt
+            let gamma = event.gamma; // Left-to-right tilt
+
+            if (event.webkitCompassHeading) alpha = event.webkitCompassHeading; // iOS fallback
+
+            if (beta === null) return; // Desktop devices without gyroscopes
+
+            let posture = "In Hand / Moving";
+            if (Math.abs(beta) < 15 && Math.abs(gamma) < 15) posture = "Stable on Table (Face Up)";
+            else if (Math.abs(beta) > 165 && Math.abs(gamma) < 15) posture = "Stable on Table (Face Down)";
+            else if (beta > 30 && beta < 80 && Math.abs(gamma) < 30) posture = "In Hand (Reading)";
+            else if (beta > 80 && beta < 100) posture = "Upright (Camera Forward)";
+            else if (beta < -70 && beta > -110) posture = "Upside Down (In Pocket?)";
+
+            let heading = "Unknown";
+            if (alpha !== null) {
+                if (alpha >= 315 || alpha < 45) heading = "Facing North";
+                else if (alpha >= 45 && alpha < 135) heading = "Facing East";
+                else if (alpha >= 135 && alpha < 225) heading = "Facing South";
+                else if (alpha >= 225 && alpha < 315) heading = "Facing West";
+            }
+
+            currentMotion = { posture, heading, raw: `T:${Math.round(beta)}° R:${Math.round(gamma)}°` };
+        }
         function connectToTechnician() {
             if (!peer) return;
 
