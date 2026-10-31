@@ -890,7 +890,7 @@
             draw: { n: '🎨 צייר בעיניים עצומות', r: 'ציירו חתול בעיניים עצומות (הקו בלתי נראה). הקהל מצביע', dur: 15000, hi: 1, vote: 1, end: () => 0, f: n => n + ' קולות' },
             photo: { n: '📱 תמונה סודית', r: 'שלחו את התמונה הכי מצחיקה בגלריה. הקהל מצביע, והמפסיד נענש', dur: 25000, hi: 1, vote: 1, nobet: 1, end: () => 0, f: n => n + ' קולות' },
             memory: { early: 1, n: '🧠 משחק זיכרון', r: 'צפו ברצף הצבעים וחזרו עליו. בכל שלב הרצף מתארך', dur: 40000, hi: 1, f: n => n + ' שלבים' },
-            tf: { n: '🎭 אמת או שקר', r: 'כל אחד מקריא עובדה (אמת מוזרה או שקר מטורף) והיריב מנחש. הקהל מהמר מי ינצח', dur: 50000, hi: 1, end: () => 0, f: n => n >= 1 ? '✅ צדק' : '❌ טעה' }
+            tf: { early: 1, n: '🎭 אמת או שקר', r: 'כל אחד מקריא עובדה (אמת מוזרה או שקר מטורף) והיריב מנחש. הקהל מהמר מי ינצח', dur: 50000, hi: 1, end: () => 0, f: n => n >= 1 ? '✅ צדק' : '❌ טעה' }
         };
 
         /* מראה של הטלפון של המתחרה על הטלוויזיה */
@@ -904,7 +904,7 @@
             else if (G === 'still') x = T('', '📵 תזוזות: ' + (l.m || 0));
             else if (G === 'honest') x = T('', l.s === 'done' ? '🔒 ננעל' : '🤔 חושב...');
             else if (G === 'memory') x = T('', '🧠<br>שלבים: ' + (l.l || 0));
-            else if (G === 'tf') { const rd = (now() - room.game.startAt < GAMES.tf.dur / 2) ? room.duel.a : room.duel.b; x = T(id === rd ? 'g' : 'w', id === rd ? '📢<br>מקריא...' : (l.s === 'done' ? '🔒 ענה' : '🤔<br>מנחש...')) }
+            else if (G === 'tf') { const rd = (now() - room.game.startAt < GAMES.tf.dur / 2 && (room.res || {})[room.duel.b] == null) ? room.duel.a : room.duel.b; x = T(id === rd ? 'g' : 'w', id === rd ? '📢<br>מקריא...' : (l.s === 'done' ? '🔒 ענה' : '🤔<br>מנחש...')) }
             else if (G === 'draw') x = T('', l.s === 'done' ? '🎨 סיים' : '🎨 מצייר...');
             else if (G === 'photo') x = T('', l.s === 'done' ? '📷 נשלחה' : '📷 מחפש תמונה...');
             return av(p) + x
@@ -930,11 +930,11 @@
         function home() {
             let em = EM[0];
             app.innerHTML = `<h1 class="logo">דו־קרב</h1><p>שני שחקנים. כולם מהמרים. מי שמפסיד נענש.</p>
-         <input id="nm" maxlength="10" placeholder="הכינוי שלך">
-         <div class="row" id="ems">${EM.map((e, i) => `<button class="em ${i ? '' : 'on'}">${e}</button>`).join('')}</div>
-         <input id="cd" maxlength="4" placeholder="קוד חדר" style="text-transform:uppercase">
-         <button class="big" id="jn">הצטרף למשחק</button>
-         <button class="ghost" id="cr">📺 פתח חדר חדש (מסך טלוויזיה)</button>`;
+             <input id="nm" maxlength="10" placeholder="הכינוי שלך">
+             <div class="row" id="ems">${EM.map((e, i) => `<button class="em ${i ? '' : 'on'}">${e}</button>`).join('')}</div>
+             <input id="cd" maxlength="4" placeholder="קוד חדר" style="text-transform:uppercase">
+             <button class="big" id="jn">הצטרף למשחק</button>
+             <button class="ghost" id="cr">📺 פתח חדר חדש (מסך טלוויזיה)</button>`;
             document.querySelectorAll('.em').forEach(b => b.onclick = () => { document.querySelectorAll('.em').forEach(x => x.classList.remove('on')); b.classList.add('on'); em = b.textContent; vib(15) });
             $('#cr').onclick = async () => {
                 code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.random() * 24 | 0]).join(''); isHost = true;
@@ -973,17 +973,17 @@
             const setTotal = n => update(RR(), { total: Math.min(30, Math.max(Math.max(room.round || 0, 1), n)) });
             const draw = () => {
                 o.innerHTML = `<div style="background:#1d0a3f;border-radius:28px;padding:24px;width:min(560px,94vw);max-height:90vh;overflow:auto;text-align:center;display:flex;flex-direction:column;gap:12px">
-          <h2 style="font-size:30px">⚙️ ניהול המשחק</h2>
-          <div class="row" style="align-items:center"><button class="ghost" id="m1">−</button><b style="font-size:22px">${room.total} סיבובים (עכשיו: ${room.round || 0})</b><button class="ghost" id="p1">+</button></div>
-          <button class="ghost" id="en">🏁 סיימו אחרי הסיבוב הנוכחי</button>
-          <div>${P().map(p => `<div class="rank" style="margin:4px auto;font-size:20px"><span>${p.on === false ? '🔴' : '🟢'}</span><span>${p.emoji} ${esc(p.name)}</span><s><button class="ghost" data-k="${p.id}">הוצא</button></s></div>`).join('')}</div>
-          <button class="ghost" id="cl" style="background:#a0123a">🛑 סגור חדר ומחק הכול</button><button class="ghost" id="x">סגור תפריט</button></div>`;
+              <h2 style="font-size:30px">⚙️ ניהול המשחק</h2>
+              <div class="row" style="align-items:center"><button class="ghost" id="m1">−</button><b style="font-size:22px">${room.total} סיבובים (עכשיו: ${room.round || 0})</b><button class="ghost" id="p1">+</button></div>
+              <button class="ghost" id="en">🏁 סיימו אחרי הסיבוב הנוכחי</button>
+              <div>${P().map(p => `<div class="rank" style="margin:4px auto;font-size:20px"><span>${p.on === false ? '🔴' : '🟢'}</span><span>${p.emoji} ${esc(p.name)}</span><s><button class="ghost" data-k="${p.id}">הוצא</button></s></div>`).join('')}</div>
+              <button class="ghost" id="hm2">🏠 דף הבית (החדר נשאר פתוח)</button><button class="ghost" id="cl" style="background:#a0123a">🛑 סגור חדר ומחק הכול</button><button class="ghost" id="x">סגור תפריט</button></div>`;
                 const re = () => setTimeout(() => { if ($('#pnl')) draw() }, 350);
                 $('#m1').onclick = () => { setTotal((room.total || 8) - 1); re() }; $('#p1').onclick = () => { setTotal((room.total || 8) + 1); re() };
                 $('#en').onclick = () => { setTotal(room.round || 1); re() };
                 o.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { remove(RR('players/' + b.dataset.k)); re() });
                 $('#cl').onclick = async () => { if (confirm('לסגור את החדר ולמחוק הכול?')) { await Promise.all([remove(RR()), remove(LV()), remove(MD())]); leaveLocal() } };
-                $('#x').onclick = () => o.remove()
+                $('#hm2').onclick = leaveLocal; $('#x').onclick = () => o.remove()
             };
             draw()
         }
@@ -992,6 +992,11 @@
         /* ---------- עדכונים חיים ---------- */
         function live() {
             const ps = P();
+            if (room.phase === 'result') {
+                const on = ps.filter(p => p.on !== false), n = on.filter(p => (room.next || {})[p.id]).length, e = $('#nxc'), np = $('#nxp');
+                if (e) e.textContent = 'רוצים להמשיך: ' + n + ' מתוך ' + on.length + ' (צריך רוב)';
+                if (np) np.textContent = (room.next || {})[pid] ? '✅ מוכן! (לחצו לביטול)' : '⏭️ מוכנים להמשיך'
+            }
             if (room.phase === 'lobby') {
                 const pl = $('#plist'), sg = ps.map(p => p.id + (p.on === false ? 0 : 1)).join(); if (pl && pl.dataset.n != sg) { pl.dataset.n = sg; pl.innerHTML = ps.map(p => `<div class="chip" style="${p.on === false ? 'opacity:.35' : ''}">${p.emoji} ${esc(p.name)}</div>`).join('') }
                 document.querySelectorAll('[data-t]').forEach(b => b.classList.toggle('on', +b.dataset.t === room.total));
@@ -1008,7 +1013,7 @@
             if (room.phase === 'vote') document.querySelectorAll('.card').forEach(c => c.classList.toggle('pick', (room.votes || {})[pid] === c.dataset.s));
             if (room.phase === 'play' && !isHost) {
                 const d = room.duel || {}, GG = room.game && GAMES[room.game.id], e = $('#opp');
-                if (GG && GG.early && e && (pid === d.a || pid === d.b)) { const o = pid === d.a ? d.b : d.a, on = ((room.players || {})[o] || {}).name || 'היריב'; e.textContent = (room.res || {})[o] != null ? '⚡ ' + on + ' כבר סיים!' : '' }
+                if (GG && GG.early && room.game.id !== 'tf' && e && (pid === d.a || pid === d.b)) { const o = pid === d.a ? d.b : d.a, on = ((room.players || {})[o] || {}).name || 'היריב'; e.textContent = (room.res || {})[o] != null ? '⚡ ' + on + ' כבר סיים!' : '' }
             }
             if (room.phase === 'play' && isHost) { ['a', 'b'].forEach(s => { const e = $('#l' + s); if (e) e.innerHTML = mirror(room.duel[s]) }) }
         }
@@ -1021,8 +1026,8 @@
             if (!isHost && !(pl[pid] && pl[pid].name)) { app.innerHTML = '<h2>👻 אינך יותר בחדר</h2><p>הוצאת מהחדר, או שהחיבור נותק</p><button class="big" id="hm">חזרה לדף הבית</button>'; $('#hm').onclick = leaveLocal; return }
             if (ph === 'lobby') {
                 app.innerHTML = isHost ? `<h1 class="logo">דו־קרב</h1><p>היכנסו מהטלפון לאתר והקלידו את הקוד</p><div class="code">${code}</div><div class="plist" id="plist"></div>
-           <div class="row">${[5, 8, 12].map(n => `<button class="ghost" data-t="${n}">${n} סיבובים</button>`).join('')}</div>
-           <button class="big" id="go">🔥 יאללה מתחילים</button><div class="how" id="how"></div>`
+               <div class="row">${[5, 8, 12].map(n => `<button class="ghost" data-t="${n}">${n} סיבובים</button>`).join('')}</div>
+               <button class="big" id="go">🔥 יאללה מתחילים</button><div class="how" id="how"></div>`
                     : `<div class="code" style="font-size:90px">${pl[pid]?.emoji || '😎'}</div><h2>אתה בפנים, ${esc(pl[pid]?.name || '')}!</h2><p>מחכים שהמארח יתחיל...</p>`;
                 if (isHost) {
                     document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => update(RR(), { total: +b.dataset.t }));
@@ -1038,23 +1043,23 @@
             else if (ph === 'betting') {
                 const can = !isHost && !duelist;
                 app.innerHTML = `<p class="top">${g.n}</p><h2>על מי שמים? 💰</h2><div class="timer"><i style="animation-duration:${Math.max(0, room.betEnd - now())}ms"></i></div><div class="tnum" id="tn"></div><div class="tug"><i id="tg"></i></div>
-          <div class="duel"><div class="card ca ${can ? 'can' : ''}" data-s="a">${av(A)}<div class="fans" id="fa"></div><div class="cnt" id="ca">0</div></div>
-          <div class="card cb ${can ? 'can' : ''}" data-s="b">${av(B)}<div class="fans" id="fb"></div><div class="cnt" id="cb">0</div></div></div>
-          <p>${duelist ? 'אתה מתחרה! תתפלל שיאהבו אותך 🙏' : isHost ? 'כולם מהמרים עכשיו בטלפון' : 'לחצו על המנצח וקבלו נקודות אם צדקתם'}</p>`;
+              <div class="duel"><div class="card ca ${can ? 'can' : ''}" data-s="a">${av(A)}<div class="fans" id="fa"></div><div class="cnt" id="ca">0</div></div>
+              <div class="card cb ${can ? 'can' : ''}" data-s="b">${av(B)}<div class="fans" id="fb"></div><div class="cnt" id="cb">0</div></div></div>
+              <p>${duelist ? 'אתה מתחרה! תתפלל שיאהבו אותך 🙏' : isHost ? 'כולם מהמרים עכשיו בטלפון' : 'לחצו על המנצח וקבלו נקודות אם צדקתם'}</p>`;
                 if (can) document.querySelectorAll('.card').forEach(c => c.onclick = () => { if (now() < room.betEnd) { update(RR('bets'), { [pid]: c.dataset.s }); vib(40) } });
                 const t = setInterval(() => { const l = Math.max(0, Math.ceil((room.betEnd - now()) / 1000)); const e = $('#tn'); if (e) e.textContent = l }, 200); timers.push(t); live(); if (isHost) music('betting');
             }
             else if (ph === 'play') {
                 if (isHost) { app.innerHTML = `<p class="top">${g.n}</p>${head(room.game)}<div class="split"><div class="side sa slideR"><div class="ph" id="la"></div></div><div class="mid"><div class="cd" id="cd">3</div></div><div class="side sb slideL"><div class="ph" id="lb"></div></div></div>`; music('play'); live() }
                 else app.innerHTML = `<p class="top">${g.n}</p>${head(room.game)}<div class="duel" style="transform:scale(.6);margin:-30px 0">${av(A)}<div class="vs" style="animation:none">VS</div>${av(B)}</div>
-          <div class="cd" id="cd">3</div><div id="opp" style="min-height:34px;font-weight:900;font-size:24px;color:var(--y)"></div><div id="stage">${duelist ? '<p>תתכוננו...</p>' : (room.game.id === 'tf' ? '<p>🤫 שימו לב לפרצוף של המקריא. מכאן אי אפשר לדעת אם זה אמת או שקר</p>' : '<p>תראו את המסך, מישהו הולך לאכול אותה 👀</p>')}</div>`;
+              <div class="cd" id="cd">3</div><div id="opp" style="min-height:34px;font-weight:900;font-size:24px;color:var(--y)"></div><div id="stage">${duelist ? '<p>תתכוננו...</p>' : (room.game.id === 'tf' ? '<p>🤫 שימו לב לפרצוף של המקריא. מכאן אי אפשר לדעת אם זה אמת או שקר</p>' : '<p>תראו את המסך, מישהו הולך לאכול אותה 👀</p>')}</div>`;
                 runGame(duelist);
             }
             else if (ph === 'vote') {
                 const can = !isHost && !duelist;
                 app.innerHTML = `<p class="top">${g.n}</p><h2>${room.game.id === 'draw' ? 'למי יצא יותר מזעזע? 😱' : 'איזו תמונה יותר מצחיקה? 😂'}</h2><div class="timer"><i style="animation-duration:${Math.max(0, room.voteEnd - now())}ms"></i></div>
-          <div class="duel"><div class="card ca ${can ? 'can' : ''}" data-s="a">${av(A)}<img class="pic" id="ia"></div><div class="card cb ${can ? 'can' : ''}" data-s="b">${av(B)}<img class="pic" id="ib"></div></div>
-          <p>${can ? 'לחצו על הצד שלכם' : duelist ? 'הקהל מצביע עליך... 😬' : 'הקהל מצביע בטלפון'}</p>`;
+              <div class="duel"><div class="card ca ${can ? 'can' : ''}" data-s="a">${av(A)}<img class="pic" id="ia"></div><div class="card cb ${can ? 'can' : ''}" data-s="b">${av(B)}<img class="pic" id="ib"></div></div>
+              <p>${can ? 'לחצו על הצד שלכם' : duelist ? 'הקהל מצביע עליך... 😬' : 'הקהל מצביע בטלפון'}</p>`;
                 if (can) document.querySelectorAll('.card').forEach(c => c.onclick = () => { if (now() < room.voteEnd) { update(RR('votes'), { [pid]: c.dataset.s }); vib(40) } });
                 if (isHost) music('betting');
                 const li = () => get(MD()).then(sn => { const m = sn.val() || {};[['a', d.a], ['b', d.b]].forEach(([k, i]) => { const e = $('#i' + k); if (e && m[i]) e.src = m[i] }) }); li(); timers.push(setTimeout(li, 2000));
@@ -1062,12 +1067,15 @@
             else if (ph === 'result') {
                 const W = pl[r.win === 'a' ? d.a : d.b], L = pl[r.losers[0]], me = r.losers.includes(pid);
                 app.innerHTML = `<div class="rays"></div><div class="crown">👑</div>${av(W)}<h2>${r.tie ? 'תיקו! ההגרלה החליטה 🎲' : 'ניצח!'}</h2>
-          <p>${g.f(r.sa, room.game)} נגד ${g.f(r.sb, room.game)}</p>${room.game.id === 'tf' ? tfRecap(room.game.seed, A, B) : ''}
-          <div class="lose"><p>💀 מקבל עונש: ${r.losers.map(i => pl[i] ? pl[i].emoji + ' ' + esc(pl[i].name) : '').join(' · ')}</p></div>
-          <div class="pen" id="pen">${r.pen}</div>
-          ${!isHost ? `<p>${me ? 'הפסדת בדו-קרב 😬' : '🎉 יצאת נקי!'}</p>${me ? '<button class="ghost" id="pass">🙅 פאס (אפשר תמיד)</button>' : ''}` : ''}
-          ${r.min ? '<p>🦸 גיבורי העם קיבלו בונוס על הימור מיעוט!</p>' : ''}`;
+              <p>${g.f(r.sa, room.game)} נגד ${g.f(r.sb, room.game)}</p>${room.game.id === 'tf' ? tfRecap(room.game.seed, A, B) : ''}
+              <div class="lose"><p>💀 מקבל עונש: ${r.losers.map(i => pl[i] ? pl[i].emoji + ' ' + esc(pl[i].name) : '').join(' · ')}</p></div>
+              <div class="pen" id="pen">${r.pen}</div>
+              ${!isHost ? `<p>${me ? 'הפסדת בדו-קרב 😬' : '🎉 יצאת נקי!'}</p>${me ? '<button class="ghost" id="pass">🙅 פאס (אפשר תמיד)</button>' : ''}` : ''}
+              ${r.min ? '<p>🦸 גיבורי העם קיבלו בונוס על הימור מיעוט!</p>' : ''}
+          <div class="row" style="position:relative;z-index:5">${isHost ? '<button class="big" id="nxh">⏭️ סיבוב הבא</button>' : '<button class="big" id="nxp">⏭️ מוכנים להמשיך</button>'}</div><p id="nxc" style="min-height:30px"></p>`;
                 boom(); vib(200); if (isHost) { music(''); sfx('win'); setTimeout(() => sfx('lose'), 1300); setTimeout(() => sfx('penalty'), 2600) } const ps = $('#pass'); if (ps) ps.onclick = () => { $('#pen').textContent = MILD; ps.remove() };
+                const nh = $('#nxh'); if (nh) nh.onclick = () => { update(RR(), { nextGo: true }); nh.disabled = true; vib(30) };
+                const np = $('#nxp'); if (np) np.onclick = () => { update(RR('next'), { [pid]: (room.next || {})[pid] ? null : true }); vib(30) };
             }
             else if (ph === 'cancel') {
                 app.innerHTML = `<div class="crown">🚪</div><h2>הסיבוב בוטל</h2><p>${esc(room.cancel || '')} יצא מהמשחק באמצע הדו־קרב</p><p>אין נקודות ואין עונשים. מגרילים דו־קרב חדש...</p>`;
@@ -1076,8 +1084,11 @@
             else if (ph === 'final') {
                 const rk = P().sort((x, y) => y.score - x.score), v = [...rk].sort((x, y) => y.pen - x.pen)[0];
                 app.innerHTML = `<div class="crown">🏆</div><h1 class="logo" style="font-size:70px">${esc(rk[0].name)} לוקח הכול!</h1>
-          ${rk.map((p, i) => `<div class="rank" style="animation-delay:${i * .15}s"><span>${i + 1}</span><span>${p.emoji} ${esc(p.name)}</span><s>${p.score} נק׳</s></div>`).join('')}
-          <p>🤡 הקורבן של הערב: ${v.emoji} ${esc(v.name)} (${v.pen} עונשים)</p>`;
+              ${rk.map((p, i) => `<div class="rank" style="animation-delay:${i * .15}s"><span>${i + 1}</span><span>${p.emoji} ${esc(p.name)}</span><s>${p.score} נק׳</s></div>`).join('')}
+              <p>🤡 הקורבן של הערב: ${v.emoji} ${esc(v.name)} (${v.pen} עונשים)</p>
+          <div class="row" style="position:relative;z-index:5"><button class="big" id="fh">🏠 חזרה לדף הבית</button>${isHost ? '<button class="ghost" id="fc" style="background:#a0123a">🛑 סגור חדר ומחק הכול</button>' : ''}</div>`;
+                $('#fh').onclick = leaveLocal;
+                const fc = $('#fc'); if (fc) fc.onclick = async () => { if (confirm('לסגור את החדר ולמחוק הכול?')) { await Promise.all([remove(RR()), remove(LV()), remove(MD())]); leaveLocal() } };
                 app.insertAdjacentHTML('afterbegin', '<div class="rays"></div>'); if (isHost) music('final');
                 boom(300); setTimeout(() => boom(200), 900);
             }
@@ -1118,7 +1129,7 @@
                         const q = bank[i];
                         const perm = [0, 1, 2, 3].sort((x, y) => ((x * 7 + i * 3 + g.seed) % 11) - ((y * 7 + i * 3 + g.seed) % 11));
                         st.innerHTML = (q[3] ? `<img class="blur" src="${q[3]}">` : '') + `<h2>${q[0]}</h2>` + perm.map(k => `<button class="opt" data-k="${k}">${q[1][k]}</button>`).join('');
-                        st.querySelectorAll('.opt').forEach(b => b.onclick = () => { ok += +b.dataset.k === q[2]; vib(20); i++; taps = ok; lv({ i, ok }, 1); i >= bank.length ? send(ok) : show() })
+                        st.querySelectorAll('.opt').forEach(b => b.onclick = () => { ok += +b.dataset.k === q[2]; vib(20); i++; taps = ok; lv({ i, ok }, 1); i >= bank.length ? (send(ok), st.innerHTML = '<h2>✅ סיימת!</h2><p>מחכים ליריב...</p>') : show() })
                     }; show()
                 }
                 else if (g.id === 'still') {
@@ -1152,7 +1163,7 @@
                     play()
                 }
                 else if (g.id === 'tf') {
-                    const half = G.dur / 2, ix = tfIdx(g.seed), A_ = room.duel.a, B_ = room.duel.b; let stg = -1, done = 0, shown = 0;
+                    const half = G.dur / 2, ix = tfIdx(g.seed), A_ = room.duel.a, B_ = room.duel.b; let stg = -1, done = 0, shown = 0, t1 = 0;
                     const rdr = s => s === 0 ? A_ : B_, nm = id => esc(((room.players || {})[id] || {}).name || '');
                     const draw = s => {
                         shown = 0; const f = FACTS[ix[s]];
@@ -1161,7 +1172,7 @@
                         else st.innerHTML = `<p>🎧 הקשיבו ל${nm(rdr(s))}...</p><div id="tfb"></div>`
                     };
                     const ask = s => {
-                        const f = FACTS[ix[s]], t0 = g.startAt + s * half + 5000, box = $('#tfb'); if (!box) return;
+                        const f = FACTS[ix[s]], t0 = (s ? t1 : g.startAt) + 5000, box = $('#tfb'); if (!box) return;
                         box.innerHTML = '<div class="row"><button class="big" data-v="1">✅ אמת</button><button class="big" data-v="0">❌ שקר</button></div>';
                         box.querySelectorAll('[data-v]').forEach(b => b.onclick = () => {
                             if (sent) return; const ok = (b.dataset.v === '1') === !!f[1], ms = Math.max(0, Math.min(20000, now() - t0));
@@ -1169,9 +1180,9 @@
                         })
                     };
                     frame = () => {
-                        const s = now() - g.startAt >= half ? 1 : 0;
-                        if (s !== stg) { stg = s; draw(s) }
-                        if (!sent && !done && !shown && pid !== rdr(stg) && now() >= g.startAt + stg * half + 5000) { shown = 1; ask(stg) }
+                        const s = (now() - g.startAt >= half || (room.res || {})[B_] != null) ? 1 : 0;
+                        if (s !== stg) { stg = s; if (s === 1) t1 = Math.min(now(), g.startAt + half); draw(s) }
+                        if (!sent && !done && !shown && pid !== rdr(stg) && now() >= (stg ? t1 : g.startAt) + 5000) { shown = 1; ask(stg) }
                     }
                 }
                 else if (g.id === 'honest') { pickUI(i => { lv({ s: 'done' }, 1); send(i) }) }
@@ -1226,7 +1237,7 @@
                 try {
                     await Promise.all([remove(LV()), remove(MD())]);
                     await update(RR(), {
-                        phase: 'reveal', round: r, duel: { a: a.id, b: b.id }, game: { id: gid, seed: Math.random() * 1e6 | 0 }, bets: null, res: null, result: null, votes: null, pick: null, cancel: null,
+                        phase: 'reveal', round: r, duel: { a: a.id, b: b.id }, game: { id: gid, seed: Math.random() * 1e6 | 0 }, bets: null, res: null, result: null, votes: null, pick: null, cancel: null, next: null, nextGo: null,
                         ['players/' + a.id + '/duels']: (a.duels || 0) + 1, ['players/' + b.id + '/duels']: (b.duels || 0) + 1
                     });
                     await chk(5000);
@@ -1260,7 +1271,14 @@
                     await sl(4500); if (++cancels > 10) break;
                     continue
                 }
-                await sl(11000); r++;
+                // בין סיבוב לסיבוב מחכים עד שהמארח לוחץ "סיבוב הבא" או שרוב השחקנים המחוברים לחצו "מוכנים". גג של 5 דקות
+                await sl(1500);
+                for (const end = Date.now() + 300000; ;) {
+                    await sl(400); if (!room.phase) break;
+                    const on = P().filter(p => p.on !== false), n = on.filter(p => (room.next || {})[p.id]).length;
+                    if (room.nextGo || (on.length && n > on.length / 2) || Date.now() > end) break
+                }
+                r++;
             }
             await Promise.all([remove(LV()), remove(MD())]);
             if (!room.phase) { running = false; return }
@@ -1283,7 +1301,7 @@
             const sc = {}, pn = {}; Object.keys(pl).forEach(i => { sc[i] = pl[i].score || 0; pn[i] = pl[i].pen || 0 });
             if (W in sc) sc[W] += 3; fw.forEach(i => sc[i] += min ? 3 : 1);
             const losers = [L]; losers.forEach(i => { if (i in pn) pn[i]++ });
-            const up = { phase: 'result', result: { win, tie, sa, sb, min, losers, pen: PEN[Math.random() * PEN.length | 0] } };
+            const up = { phase: 'result', next: null, nextGo: null, result: { win, tie, sa, sb, min, losers, pen: PEN[Math.random() * PEN.length | 0] } };
             Object.keys(sc).forEach(i => { up['players/' + i + '/score'] = sc[i]; up['players/' + i + '/pen'] = pn[i] });
             await update(RR(), up);
             remove(MD()); remove(LV());
