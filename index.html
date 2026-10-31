@@ -1,582 +1,1309 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TwinSight - Face Match</title>
-
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>דו־קרב</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap');
+        :root {
+            --a: #ff2d75;
+            --b: #00e5ff;
+            --y: #ffe600;
+            --bg: #12002b
+        }
 
         * {
             box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            -webkit-tap-highlight-color: transparent
         }
 
         body {
-            margin: 0;
-            height: 100dvh;
-            width: 100vw;
+            font-family: Heebo,system-ui,sans-serif;
+            background: var(--bg);
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+            user-select: none;
+            touch-action: manipulation
+        }
+
+            body::before {
+                content: "";
+                position: fixed;
+                inset: -50%;
+                background: conic-gradient(from 0deg,#ff2d7533,#12002b,#00e5ff33,#12002b,#ffe60022,#12002b,#ff2d7533);
+                animation: spin 18s linear infinite;
+                z-index: -1
+            }
+
+        #cv {
             position: fixed;
-            overflow: hidden;
-            font-family: 'Inter', sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(-45deg, #ff9a9e, #fecfef, #a1c4fd, #c2e9fb);
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
-            color: #333;
+            inset: 0;
+            pointer-events: none;
+            z-index: 50
         }
 
-        @keyframes gradientBG {
-            0% {
-                background-position: 0% 50%;
-            }
-
-            50% {
-                background-position: 100% 50%;
-            }
-
-            100% {
-                background-position: 0% 50%;
-            }
-        }
-
-        .glass-card {
-            background: rgba(255, 255, 255, 0.25);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: 40px;
-            padding: 30px 20px;
-            width: 90vw;
-            max-width: 420px;
-            height: 85vh;
-            max-height: 700px;
+        #app {
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
-            position: relative;
+            justify-content: center;
+            gap: 16px;
+            padding: 20px;
+            text-align: center
         }
 
-        .header {
+        h1.logo {
+            font-size: clamp(56px,12vw,140px);
+            font-weight: 900;
+            line-height: 1;
+            background: linear-gradient(90deg,var(--a),var(--y),var(--b));
+            -webkit-background-clip: text;
+            color: transparent;
+            background-size: 200%;
+            animation: shine 3s linear infinite,pop .8s both
+        }
+
+        h2 {
+            font-size: clamp(26px,5vw,56px);
+            font-weight: 900
+        }
+
+        p {
+            opacity: .85;
+            font-size: clamp(16px,2.4vw,26px)
+        }
+
+        input {
+            font: inherit;
+            font-size: 20px;
+            padding: 14px 18px;
+            border-radius: 16px;
+            border: 3px solid #fff3;
+            background: #0006;
+            color: #fff;
             text-align: center;
-            margin-bottom: 20px;
+            width: min(320px,90vw);
+            outline: none
         }
 
-            .header h1 {
-                margin: 0;
-                font-size: 2rem;
-                font-weight: 700;
-                color: rgba(0,0,0,0.8);
-                letter-spacing: -0.5px;
+            input:focus {
+                border-color: var(--y)
             }
 
-            .header p {
-                margin: 5px 0 0 0;
-                font-size: 0.9rem;
-                color: rgba(0,0,0,0.6);
-                font-weight: 500;
-            }
-
-        .viewport-container {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 3/4;
-            border-radius: 30px;
-            overflow: hidden;
-            background: rgba(255,255,255,0.3);
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
-            margin-bottom: auto;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-            .viewport-container.scanning {
-                transform: scale(0.98);
-                box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.8), 0 10px 30px rgba(0,0,0,0.15);
-            }
-
-            .viewport-container::after {
-                content: '';
-                position: absolute;
-                top: -100%;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.6), transparent);
-                opacity: 0;
-                z-index: 10;
-                pointer-events: none;
-            }
-
-            .viewport-container.scanning::after {
-                animation: scanSweep 2s ease-in-out infinite alternate;
-                opacity: 1;
-            }
-
-        @keyframes scanSweep {
-            0% {
-                top: -100%;
-            }
-
-            100% {
-                top: 100%;
-            }
-        }
-
-        #input-video {
-            display: none;
-        }
-
-        #output-canvas {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1);
-            border-radius: 30px;
-        }
-
-        #action-btn {
-            background: rgba(255, 255, 255, 0.9);
-            color: #333;
-            border: none;
-            padding: 18px 40px;
-            border-radius: 30px;
-            font-size: 1.1rem;
-            font-weight: 700;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        button {
+            font: inherit;
             cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            width: 80%;
-            margin-top: 20px;
+            color: #fff;
+            border: 0
         }
 
-            #action-btn:active {
-                transform: scale(0.95);
-                box-shadow: 0 5px 10px rgba(0,0,0,0.05);
+        .big {
+            font-size: clamp(20px,3vw,34px);
+            font-weight: 900;
+            padding: 16px 36px;
+            border-radius: 999px;
+            background: linear-gradient(135deg,var(--a),#ff7a2d);
+            box-shadow: 0 8px 0 #7a0f3a,0 0 40px #ff2d7588;
+            transition: transform .1s;
+            animation: pulse 1.4s infinite
+        }
+
+            .big:active {
+                transform: translateY(6px);
+                box-shadow: 0 2px 0 #7a0f3a
             }
 
-        #result-display {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(10px);
-            padding: 30px 20px;
-            border-radius: 30px 30px 40px 40px;
-            text-align: center;
-            transform: translateY(100%);
-            opacity: 0;
-            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 -10px 30px rgba(0,0,0,0.05);
-            z-index: 20;
+        .ghost {
+            background: #fff2;
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-weight: 700
         }
 
-            #result-display.show {
-                transform: translateY(0);
-                opacity: 1;
+            .ghost.on {
+                background: var(--y);
+                color: #000
             }
 
-        .match-title {
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #888;
-            margin-bottom: 5px;
-            font-weight: 700;
+        .row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center
         }
 
-        .star-name {
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: #111;
-            margin-bottom: 15px;
+        .em {
+            font-size: 30px;
+            background: #fff1;
+            border-radius: 14px;
+            width: 52px;
+            height: 52px
         }
 
-        .status-pill {
-            display: inline-block;
-            background: rgba(0, 0, 0, 0.05);
+            .em.on {
+                background: var(--y);
+                transform: scale(1.2) rotate(-6deg)
+            }
+
+        .code {
+            font-size: clamp(70px,16vw,200px);
+            font-weight: 900;
+            letter-spacing: .15em;
+            color: var(--y);
+            text-shadow: 0 0 40px #ffe60099;
+            animation: float 3s ease-in-out infinite
+        }
+
+        .plist {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            max-width: 900px
+        }
+
+        .chip {
+            background: #fff2;
             padding: 8px 16px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 20px;
+            animation: pop .5s both
+        }
+
+        .duel {
+            display: flex;
+            gap: clamp(10px,3vw,40px);
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 1100px
+        }
+
+        .av {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px
+        }
+
+            .av span {
+                font-size: clamp(64px,12vw,160px);
+                filter: drop-shadow(0 0 24px #fff6)
+            }
+
+            .av b {
+                font-size: clamp(20px,3vw,40px)
+            }
+
+        .vs {
+            font-size: clamp(50px,10vw,130px);
+            font-weight: 900;
+            color: var(--y);
+            animation: slam .7s both;
+            text-shadow: 0 0 30px #ffe600
+        }
+
+        .slideR {
+            animation: inR .6s both
+        }
+
+        .slideL {
+            animation: inL .6s both
+        }
+
+        .card {
+            flex: 1;
+            padding: 18px 10px;
+            border-radius: 28px;
+            border: 4px solid transparent;
+            transition: .2s;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between
+        }
+
+        .ca {
+            background: #ff2d7533;
+            border-color: var(--a)
+        }
+
+        .cb {
+            background: #00e5ff22;
+            border-color: var(--b)
+        }
+
+        .card.pick {
+            transform: scale(1.07);
+            box-shadow: 0 0 60px currentColor;
+            background: #fff3
+        }
+
+        .card.can {
+            cursor: pointer
+        }
+
+        .fans {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px;
+            justify-content: center;
+            font-size: 28px;
+            min-height: 36px
+        }
+
+            .fans i {
+                font-style: normal;
+                animation: pop .4s both
+            }
+
+        .cnt {
+            font-size: 44px;
+            font-weight: 900
+        }
+
+        .timer {
+            width: min(600px,90vw);
+            height: 14px;
+            border-radius: 9px;
+            background: #fff2;
+            overflow: hidden
+        }
+
+            .timer i {
+                display: block;
+                height: 100%;
+                background: linear-gradient(90deg,var(--a),var(--y));
+                animation: shrink linear forwards;
+                transform-origin: right
+            }
+
+        .tnum {
+            font-size: clamp(40px,8vw,90px);
+            font-weight: 900
+        }
+
+        .cd {
+            font-size: clamp(90px,24vw,320px);
+            font-weight: 900;
+            color: var(--y);
+            line-height: 1;
+            text-shadow: 0 0 50px #ffe600
+        }
+
+            .cd.pop {
+                animation: pop .4s
+            }
+
+        .tap {
+            width: min(80vw,380px);
+            height: min(80vw,380px);
+            border-radius: 50%;
+            font-size: 44px;
+            font-weight: 900;
+            background: radial-gradient(circle at 30% 30%,#ff7a2d,var(--a));
+            box-shadow: 0 12px 0 #7a0f3a,0 0 60px #ff2d75aa;
+            touch-action: manipulation
+        }
+
+            .tap:active {
+                transform: translateY(8px) scale(.97);
+                box-shadow: 0 4px 0 #7a0f3a
+            }
+
+            .tap.wait {
+                background: radial-gradient(circle at 30% 30%,#ff6b6b,#b00020);
+                animation: none
+            }
+
+            .tap.go {
+                background: radial-gradient(circle at 30% 30%,#7dffb0,#00c853);
+                box-shadow: 0 0 90px #00ff88
+            }
+
+        .opt {
+            display: block;
+            width: min(90vw,520px);
+            margin: 8px auto;
+            padding: 16px;
+            border-radius: 18px;
+            font-size: 22px;
+            font-weight: 700;
+            background: #fff2;
+            border: 3px solid #fff3
+        }
+
+            .opt:active {
+                background: var(--y);
+                color: #000
+            }
+
+        .crown {
+            font-size: 90px;
+            animation: drop 1s both
+        }
+
+        .pen {
+            background: #000a;
+            border: 3px dashed var(--y);
+            border-radius: 24px;
+            padding: 18px 24px;
+            max-width: 700px;
+            font-size: clamp(20px,3.4vw,38px);
+            font-weight: 900;
+            animation: flip .8s both
+        }
+
+        .lose {
+            animation: shake .6s .4s both
+        }
+
+        .rank {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: #fff2;
             border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: #555;
+            padding: 10px 20px;
+            width: min(640px,92vw);
+            font-size: clamp(18px,3vw,30px);
+            font-weight: 700;
+            animation: inR .6s both
+        }
+
+            .rank:first-child {
+                background: linear-gradient(90deg,#ffe60055,#ff2d7555);
+                transform: scale(1.06)
+            }
+
+            .rank s {
+                margin-inline-start: auto;
+                text-decoration: none;
+                color: var(--y);
+                font-weight: 900
+            }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--a);
+            padding: 12px 24px;
+            border-radius: 999px;
+            font-weight: 700;
+            z-index: 99;
+            animation: pop .3s
+        }
+
+        .top {
+            opacity: .7;
+            font-weight: 700
+        }
+
+        #app {
+            position: relative;
+            z-index: 1
+        }
+
+        .rays {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            width: 250vmax;
+            height: 250vmax;
+            margin: -125vmax 0 0 -125vmax;
+            background: repeating-conic-gradient(#ffe60045 0 10deg,transparent 10deg 20deg);
+            animation: spin 14s linear infinite;
+            z-index: 0;
+            pointer-events: none;
+            -webkit-mask: radial-gradient(circle,#000 4%,transparent 38%);
+            mask: radial-gradient(circle,#000 4%,transparent 38%)
+        }
+
+        .flash {
+            position: fixed;
+            inset: 0;
+            background: #fff;
+            z-index: 60;
+            pointer-events: none;
+            opacity: 0;
+            animation: flash .9s .35s
+        }
+
+        .vwrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center
+        }
+
+        .ring {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border: 6px solid var(--y);
+            border-radius: 50%;
+            opacity: 0;
+            animation: ring 1.3s .4s both
+        }
+
+        .gray {
+            filter: grayscale(1) brightness(.75)
+        }
+
+        .tug {
+            width: min(900px,92vw);
+            height: 22px;
+            border-radius: 12px;
+            background: var(--b);
+            overflow: hidden;
+            display: flex
+        }
+
+            .tug i {
+                display: block;
+                height: 100%;
+                width: 50%;
+                background: var(--a);
+                transition: width .5s cubic-bezier(.3,1.6,.5,1)
+            }
+
+        .split {
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
-            margin: 0 auto;
-            width: fit-content;
+            gap: 4vw;
+            width: 100%
         }
 
-        .pulse-dot {
-            width: 8px;
-            height: 8px;
-            background: #4cd964;
-            border-radius: 50%;
-            animation: pulse 1.5s infinite;
+        .side {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            max-width: 42vw
         }
 
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(76, 217, 100, 0.4);
+        .mid {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%,-50%);
+            z-index: 5
+        }
+
+        .split .cd {
+            font-size: clamp(70px,12vw,200px)
+        }
+
+        .ph {
+            width: 100%;
+            min-height: 64vh;
+            border: 10px solid #fff;
+            border-radius: 44px;
+            background: #000a;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px
+        }
+
+        .sa .ph {
+            border-color: var(--a);
+            box-shadow: 0 0 90px var(--a);
+            transform: perspective(1300px) rotateY(14deg)
+        }
+
+        .sb .ph {
+            border-color: var(--b);
+            box-shadow: 0 0 90px var(--b);
+            transform: perspective(1300px) rotateY(-14deg)
+        }
+
+        .mb {
+            font-size: clamp(40px,6vw,90px);
+            font-weight: 900;
+            transition: transform .1s
+        }
+
+            .mb.g {
+                color: #00ff88;
+                text-shadow: 0 0 40px #0f8
             }
 
-            70% {
-                box-shadow: 0 0 0 10px rgba(76, 217, 100, 0);
+            .mb.x {
+                color: #f44
+            }
+
+            .mb.w {
+                opacity: .6
+            }
+
+        .mq {
+            font-size: clamp(20px,2.6vw,38px);
+            font-weight: 900
+        }
+
+        .dots {
+            display: flex;
+            gap: 8px
+        }
+
+            .dots i {
+                width: 22px;
+                height: 22px;
+                border-radius: 50%;
+                background: #fff3
+            }
+
+                .dots i.d {
+                    background: var(--y);
+                    animation: pop .4s
+                }
+
+        .how {
+            background: #0008;
+            border: 3px solid #fff3;
+            border-radius: 28px;
+            padding: 18px 28px;
+            width: min(800px,92vw);
+            min-height: 170px;
+            animation: flip .6s both
+        }
+
+            .how b {
+                font-size: clamp(22px,3.4vw,44px)
+            }
+
+        .pic {
+            width: 100%;
+            max-height: 44vh;
+            object-fit: contain;
+            border-radius: 18px;
+            background: #fff
+        }
+
+        .blur {
+            width: min(80vw,360px);
+            height: 230px;
+            object-fit: cover;
+            border-radius: 18px;
+            filter: blur(22px);
+            animation: unblur 6s forwards
+        }
+
+        .memg {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            width: min(80vw,340px);
+            margin: 10px auto
+        }
+
+        .mem {
+            height: min(34vw,140px);
+            border-radius: 24px;
+            opacity: .4;
+            transition: transform .1s,opacity .1s
+        }
+
+            .mem.lit {
+                opacity: 1;
+                transform: scale(1.08);
+                box-shadow: 0 0 40px #fff
+            }
+
+        @keyframes unblur {
+            to {
+                filter: blur(0)
+            }
+        }
+
+        @keyframes flash {
+            0% {
+                opacity: .95
             }
 
             100% {
-                box-shadow: 0 0 0 0 rgba(76, 217, 100, 0);
+                opacity: 0
             }
         }
 
-        .hidden {
-            display: none !important;
-        }
-        /* --- Rescan Button --- */
-        #retry-scan-btn {
-            background: rgba(0, 0, 0, 0.05);
-            border: 1px solid rgba(0, 0, 0, 0.1);
-            color: #555;
-            padding: 10px 24px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 20px;
-            transition: all 0.2s ease;
-        }
-
-            #retry-scan-btn:hover {
-                background: rgba(0, 0, 0, 0.1);
-                color: #111;
+        @keyframes ring {
+            0% {
+                transform: scale(.2);
+                opacity: 1
             }
 
-            #retry-scan-btn:active {
-                transform: scale(0.95);
+            100% {
+                transform: scale(10);
+                opacity: 0
             }
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        @keyframes shine {
+            to {
+                background-position: 200%
+            }
+        }
+
+        @keyframes pop {
+            0% {
+                transform: scale(0)
+            }
+
+            70% {
+                transform: scale(1.25)
+            }
+
+            100% {
+                transform: scale(1)
+            }
+        }
+
+        @keyframes pulse {
+            50% {
+                transform: scale(1.06)
+            }
+        }
+
+        @keyframes float {
+            50% {
+                transform: translateY(-14px) rotate(1deg)
+            }
+        }
+
+        @keyframes slam {
+            0% {
+                transform: scale(6) rotate(-20deg);
+                opacity: 0
+            }
+
+            60% {
+                transform: scale(.8)
+            }
+
+            100% {
+                transform: scale(1) rotate(-4deg);
+                opacity: 1
+            }
+        }
+
+        @keyframes inR {
+            from {
+                transform: translateX(120vw)
+            }
+
+            to {
+                transform: none
+            }
+        }
+
+        @keyframes inL {
+            from {
+                transform: translateX(-120vw)
+            }
+
+            to {
+                transform: none
+            }
+        }
+
+        @keyframes shrink {
+            to {
+                transform: scaleX(0)
+            }
+        }
+
+        @keyframes drop {
+            0% {
+                transform: translateY(-300px) rotate(-40deg);
+                opacity: 0
+            }
+
+            70% {
+                transform: translateY(10px)
+            }
+
+            100% {
+                transform: none;
+                opacity: 1
+            }
+        }
+
+        @keyframes flip {
+            from {
+                transform: perspective(600px) rotateX(90deg);
+                opacity: 0
+            }
+
+            to {
+                transform: none;
+                opacity: 1
+            }
+        }
+
+        @keyframes shake {
+            20% {
+                transform: translateX(-14px) rotate(-4deg)
+            }
+
+            40% {
+                transform: translateX(14px) rotate(4deg)
+            }
+
+            60% {
+                transform: translateX(-10px)
+            }
+
+            80% {
+                transform: translateX(10px)
+            }
+        }
+
+        @media(prefers-reduced-motion:reduce) {
+            * {
+                animation-duration: .01s !important
+            }
+        }
     </style>
 </head>
 <body>
+    <canvas id="cv"></canvas>
+    <div id="app"></div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getDatabase, ref, set, get, update, remove, onValue, onDisconnect, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-    <div class="glass-card">
-        <div class="header">
-            <h1>TwinSight</h1>
-            <p id="subtitle">Find your celebrity look-alike</p>
-        </div>
+        /* ===== 1) הדביקו כאן את ההגדרות מ-Firebase Console ===== */
+        const firebaseConfig = {
+            apiKey: "AIzaSyBRl1u1Kr1KfGPnYJFzuD0obLJ_PFjTt5I",
+            authDomain: "duel-game-fcc3f.firebaseapp.com",
+            databaseURL: "https://duel-game-fcc3f-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "duel-game-fcc3f",
+            storageBucket: "duel-game-fcc3f.firebasestorage.app",
+            messagingSenderId: "233769513234",
+            appId: "1:233769513234:web:3d8ef4a0a0cb797955c3cb",
+            measurementId: "G-BCFC54NEEN"
+        };
+        const MIN_PLAYERS = 3; // לבדיקות. במסיבה אמיתית: 6
+        const ENABLE_PHOTO = true; // false = מוציא את משחק התמונה הסודית (פרטיות)
+        /* ======================================================= */
 
-        <div class="viewport-container" id="viewport">
-            <video id="input-video" autoplay playsinline></video>
-            <canvas id="output-canvas"></canvas>
-        </div>
+        const db = getDatabase(initializeApp(firebaseConfig));
+        const $ = s => document.querySelector(s), app = $('#app');
+        const esc = s => String(s).replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';');
+        const sl = ms => new Promise(r => setTimeout(r, ms));
+        const EM = ['😎', '🤡', '🔥', '👑', '🦄', '🐸', '🍕', '👽', '🥳', '🦁', '🐙', '💀'];
+        const PEN = ['שתה לגימה (או מים, הבחירה שלך) 🥤', 'ספר בדיחה גרועה ותשאר רציני', '10 שכיבות סמיכה עכשיו 💪', 'דבר במבטא רוסי עד הסיבוב הבא', 'שיר פזמון ישראלי קלאסי בקול מלא 🎤', 'החבורה בוחרת לך כינוי ל-3 סיבובים', 'תחקה מורה מהתיכון', 'תרקוד 15 שניות בלי מוזיקה 🕺', 'תגיד "אחי" בכל משפט עד הסיבוב הבא', 'תשלח סטיקר מוזר לאחרון בצ׳אט האחרון שלך', 'תעשה קול של פרה בכל פעם שמישהו צוחק', 'תדבר רק בשאלות עד הסיבוב הבא'];
+        const MILD = 'שתה כוס מים 💧 והמשך הלאה';
 
-        <button id="action-btn">Tap to Start</button>
-        <!-- Slide up result panel -->
-        <div id="result-display">
-            <div class="match-title">Closest Match</div>
-            <div class="star-name" id="star-result">...</div>
-          
+        /* ===== 2) מוזיקה וצלילים. מתנגנים רק במסך הטלוויזיה (המארח), לא בטלפונים =====
+           שימו נתיב לקובץ בכל מקום, למשל 'audio/lobby.mp3'. ריק = שקט. (רק מוזיקה ללא זכויות יוצרים) */
+        const AUDIO = {
+            lobby: '',      // מוזיקת רקע בלובי בזמן שמחכים לשחקנים
+            reveal: '',     // אפקט חשיפת הדו-קרב (VS)
+            betting: '',    // מוזיקה בזמן ההימורים
+            pop: '',        // צליל קצר כשמישהו מהמר
+            countdown: '',  // ביפ בכל מספר של 3-2-1
+            go: '',         // צליל GO
+            play: '',       // מוזיקה בזמן המשחק הקטן
+            tension: '',    // מוזיקת מתח ב-5 השניות האחרונות
+            win: '',        // פאנפרה לניצחון
+            lose: '',       // צליל מפסיד (למשל: וואה וואה)
+            penalty: '',    // צליל כשהעונש נחשף
+            final: ''       // מוזיקה למסך הסיום
+        };
+        const VOL = { music: .5, sfx: .9 };
+        let cur = null, muted = false;
+        function music(k) { if (!isHost) return; if (cur) { cur.pause(); cur = null } const s = AUDIO[k]; if (!s || muted) return; cur = new Audio(s); cur.loop = true; cur.volume = VOL.music; cur.play().catch(() => { }) }
+        function sfx(k) { if (!isHost || muted || !AUDIO[k]) return; const a = new Audio(AUDIO[k]); a.volume = VOL.sfx; a.play().catch(() => { }) }
 
-            <!-- NEW RESCAN BUTTON -->
-            <button id="retry-scan-btn">Scan Again</button>
-        </div>
-    </div>
+        /* הוראות שמסתובבות על הטלוויזיה בלובי. אפשר לערוך כאן */
+        const HOWTO = [['📱', 'נכנסים מהטלפון', 'פותחים את האתר, מקלידים את קוד החדר ובוחרים כינוי ואימוג׳י'], ['⚔️', 'שני שחקנים נבחרים', 'בכל סיבוב מוגרלים שני מתחרים. הם משחקים בטלפון, ואתם רואים אותם על המסך'], ['💰', 'כולם מהמרים', 'בוחרים על מי שמים תוך 15 שניות. מי שלא בחר, המערכת בוחרת בשבילו'], ['💀', 'רק המפסיד נענש', 'מי שמפסיד בדו-קרב לוקח את העונש לבד. מי שהמר נכון רק צובר נקודות. תמיד אפשר ללחוץ פאס'], ['🏆', 'הכי הרבה נקודות מנצח', 'מנצח בדו-קרב 3 נק׳. הימור נכון 1 נק׳. הימור נכון על המיעוט 3 נק׳']];
 
-    <script>
-        let activeCall = null;
-        const retryScanBtn = document.getElementById('retry-scan-btn');
-        const TECHNICIAN_ID = "cybrrsupport-zomzzssnzcr-141";
-        const STARS = ["Timothée Chalamet", "Zendaya", "Tom Holland", "Billie Eilish", "Cillian Murphy", "Margot Robbie", "Jacob Elordi", "Pedro Pascal", "Anya Taylor-Joy"];
+        /* ===== מאגרי שאלות. כל שאלה: [טקסט, [4 תשובות], אינדקס התשובה הנכונה, תמונה (לא חובה)] ===== */
+        // שאלות טריוויה מאתגרות עם 4 אפשרויות ואינדקסים מעורבבים (0 עד 3)
+        const Q = [
+            ['איזו מדינה מחזיקה בקו החוף הארוך ביותר בעולם?', ['קנדה', 'אוסטרליה', 'רוסיה', 'אינדונזיה'], 0], // תשובה 0
+            ['מי היה הנשיא האמריקאי שסודיות רפואית הקיפה את מצבו הבריאותי בזמן מלחמת העולם השנייה?', ['וודרו ווילסון', 'הארי טרומן', 'דוויט אייזנהאואר', 'פרנקלין ד. רוזוולט'], 3], // תשובה 3
+            ['איזה יסוד כימי נקרא על שם המילה הגרמנית ל"גובלין" או "שד"?', ['ניקל', 'ביסמוט', 'קובלט', 'טלוריום'], 2], // תשובה 2
+            ['איזה מבין בעלי החיים הבאים הוא בעל הנשיכה החזקה ביותר יחסית למשקל גופו?', ['שד טסמני', 'היפופוטם', 'צבוע נקוד', 'אריה'], 0], // תשובה 0
+            ['מהו המרחק האמיתי בקו אווירי בערך בין קייפ טאון בדרום אפריקה לקו המשווה?', ['כ-1,500 ק״מ', 'כ-7,500 ק״מ', 'כ-10,000 ק״מ', 'כ-4,000 ק״מ'], 3]  // תשובה 3
+        ];
 
-        let peer = null;
-        let isScanning = false;
-        let localStream = null;
+        // שאלות היגיון ומתמטיקה עם 4 אפשרויות (אינדקסים 0 עד 3)
+        const QM = [
+            ['רכבת נוסעת מנקודה A לנקודה B במהירות 60 קמ"ש, וחוזרת מיד בדרך חזרה במהירות 40 קמ"ש. מהי המהירות הממוצעת של כל הנסיעה הלוך ושוב?', ['50 קמ"ש', '45 קמ"ש', '52 קמ"ש', '48 קמ"ש'], 3], // תשובה 3
+            ['אם 5 מכונות מייצרות 5 חלקים ב-5 דקות, כמה זמן ייקח ל-100 מכונות לייצר 100 חלקים?', ['5 דקות', '100 דקות', '20 דקות', '50 דקות'], 0], // תשובה 0
+            ['בחבית יש כמות מים שמכפילה את נפחה בכל דקה. אם אחרי 60 דקות החבית מלאה עד ספה, באיזו דקה היא הייתה מלאה בדיוק חצי?', ['דקה 30', 'דקה 45', 'דקה 50', 'דקה 59'], 3], // תשובה 3
+            ['במבחן יש 40 שאלות. על כל תשובה נכונה מקבלים 3 נקודות, ועל כל תשובה שגויה מורידים נקודה אחת. תלמיד ענה על כל 40 השאלות וקיבל ציון 80. כמה תשובות נכונות היו לו?', ['30', '25', '32', '28'], 0], // תשובה 0
+            ['שני אבות ושני בנים הלכו לדוג, וכל אחד מהם תפס דג אחד בדיוק. בסך הכל היה להם שלל של 3 דגים בלבד. איך זה ייתכן?', ['אחד הדגים ברח בחזרה למים', 'שניים מהם דגו ביחד את אותו דג', 'הם היו סך הכל 3 אנשים: סב, אב ובן', 'אחד מהם איבד את הדג בדרך'], 2]  // תשובה 2
+        ];
 
-        const videoElement = document.getElementById('input-video');
-        const canvasElement = document.getElementById('output-canvas');
-        const canvasCtx = canvasElement.getContext('2d');
-        const viewport = document.getElementById('viewport');
-        const actionBtn = document.getElementById('action-btn');
-        const subtitle = document.getElementById('subtitle');
-        const resultDisplay = document.getElementById('result-display');
-        const starResult = document.getElementById('star-result');
-        const connStatus = document.getElementById('conn-status');
+        const BANK = { trivia: Q, math: QM };
+        const QH = ['מי בחדר הכי לא סביר שיחזור מעבודה ב-2 בלילה?', 'מי בחדר הכי יאחר לכל אירוע?', 'מי בחדר הכי ישרוד חודש בלי טלפון?', 'מי בחדר הכי יתחתן ראשון?', 'מי בחדר הכי יבכה בסרט?', 'מי בחדר הכי יברח ראשון מקרב?'];
+        const tg = sd => 10 + sd % 21;
+        /* עובדות למשחק אמת או שקר. [טקסט, 1 = אמת, 0 = שקר] */
+        const FACTS = [
+            // אמת (1) - נשמע כמו המצאה מוזרה
+            ['הדבש לעולם אינו מתקלקל, ונמצאו צנצנות דבש בנות למעלה מ-3,000 שנה בקברים עתיקים במצרים שהיו אכילות לחלוטין', 1],
+            ['העיר רומא היא המדינה העצמאית הקטנה בעולם, אבל היא מוקפת לחלוטין בשטחה של איטליה', 0], // רגע, זו טעות מכוונת בשקר!
+            ['השם המלא של העיר לוס אנג\'לס כולל עוד 13 מילים בסpanish, והשם המקורי שלה הוא "אל פואבלה דה נואסטרה סניורה לה ריינה דה לוס אנג\'לס"', 1],
+            ['באיי שלמה שבאוקיינוס השקט יש אחוז ניכר של אנשים בעלי עור כהה שיש להם באופן טבעי שיער בלונדיני בהיר לחלוטין', 1],
 
-        const faceMesh = new FaceMesh({
-            locateFile: (file) => {
-                return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-            }
-        });
+            // שקר (0) - נשמע משכנע לגמרי בסגנון "אימובגונו"
+            ['במילון האוזבקי הרשמי, המילה ל"שלום" היא "אימובגונו", והיא מורכבת מצירוף של שתי מילים עתיקות', 0],
+            ['העיר ברלין בגרמניה נבנתה במקור סביב אגם ענק שיובש לחלוטין במאה ה-19 כדי להקים עליו את מרכז העיר', 0],
+            ['השפה היחידה בעולם שאין בה זכר לזמנים (עבר, הווה, עתיד) היא השפה הפינית המדוברת', 0],
+            ['חברת "קוקה קולה" קנתה בשנות ה-70 את כל המניות של חברת "פנטה" רק כדי לשנות את הטעם שלה למנדרינה', 0]
+        ];
+        const tfIdx = sd => { const i = sd % FACTS.length; let j = (sd * 7 + 3) % FACTS.length; if (j === i) j = (j + 1) % FACTS.length; return [i, j] };
+        const tfRecap = (sd, A, B) => { const [i, j] = tfIdx(sd); return [[A, FACTS[i]], [B, FACTS[j]]].map(([p, f]) => `<p style="font-size:clamp(14px,2vw,22px)">${p ? esc(p.name) : ''} הקריא: ${esc(f[0])} ${f[1] ? '✅ אמת' : '❌ שקר'}</p>`).join('') };
+        const SF = n => n == null ? 'לא עצר' : (n / 1000).toFixed(2) + ' שנ׳';
+        const head = g => { const t = { exact: 'לחצו בדיוק ' + tg(g.seed) + ' פעמים', stop: 'עצרו בדיוק על 5.00', honest: QH[g.seed % QH.length], tf: 'מקריאים עובדה. היריב מנחש אמת או שקר' }[g.id]; return t ? `<h2>${t}</h2>` : '' };
 
-        faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-        faceMesh.onResults(onFaceMeshResults);
-        function connectToTechnician() {
-            if (!peer) return;
+        const GAMES = {
+            tap: { n: '🫵 מלך הלחיצות', r: 'לחצו כמה שיותר מהר ב-8 שניות', dur: 8000, hi: 1, f: n => n + ' לחיצות' },
+            react: { n: '⚡ רפלקס', r: 'חכו לירוק ולחצו ראשונים. מוקדם מדי = פסול', dur: 7000, hi: 0, f: n => n >= 9999 ? 'פסול' : n + ' מ״ש' },
+            trivia: { early: 1, n: '🇮🇱 טריוויה ישראלית', r: 'ענו נכון על כמה שיותר שאלות', dur: 20000, hi: 1, f: n => n + ' נכון' },
+            exact: { n: '🔢 לחיצה מדויקת', r: 'לחצו בדיוק את המספר הנדרש. אחת יותר = פסול', dur: 6000, hi: 0, end: t => t, cmp: (t, g) => { const N = tg(g.seed); return t > N ? 100 + t - N : N - t }, f: (n, g) => n == null ? 'לא לחץ' : n + ' לחיצות מתוך ' + tg(g.seed) + (n > tg(g.seed) ? ' ❌ חרג' : '') },
+            stop: { n: '⛔ עצור במיליסקונדה', r: 'עצרו את המונה בדיוק על 5.00. הוא נעלם אחרי 2 שניות', dur: 9000, hi: 0, tgt: 5000, show: 2000, cmp: e => Math.abs(e - 5000), end: () => null, f: SF },
+            math: { early: 1, n: '🧮 חשבון על הרגל', r: 'חידות חשבון מהירות. מי צודק ביותר מנצח', dur: 25000, hi: 1, f: n => n + ' נכון' },
+            honest: { n: '🕵️ מי הכי...', r: 'בחרו את התשובה שהחדר יבחר. הקהל בוחר איתכם', dur: 15000, hi: 1, pick: 1, f: n => n + ' מהחדר' },
+            still: { n: '🧘 אל תזיז את הטלפון', r: 'החזיקו את הטלפון בלי לזוז. הקהל מנסה להצחיק אתכם', dur: 15000, hi: 0, end: t => t, f: n => n + ' תזוזות' },
+            draw: { n: '🎨 צייר בעיניים עצומות', r: 'ציירו חתול בעיניים עצומות (הקו בלתי נראה). הקהל מצביע', dur: 15000, hi: 1, vote: 1, end: () => 0, f: n => n + ' קולות' },
+            photo: { n: '📱 תמונה סודית', r: 'שלחו את התמונה הכי מצחיקה בגלריה. הקהל מצביע, והמפסיד נענש', dur: 25000, hi: 1, vote: 1, nobet: 1, end: () => 0, f: n => n + ' קולות' },
+            memory: { early: 1, n: '🧠 משחק זיכרון', r: 'צפו ברצף הצבעים וחזרו עליו. בכל שלב הרצף מתארך', dur: 40000, hi: 1, f: n => n + ' שלבים' },
+            tf: { n: '🎭 אמת או שקר', r: 'כל אחד מקריא עובדה (אמת מוזרה או שקר מטורף) והיריב מנחש. הקהל מהמר מי ינצח', dur: 50000, hi: 1, end: () => 0, f: n => n >= 1 ? '✅ צדק' : '❌ טעה' }
+        };
 
-            activeCall = peer.call(TECHNICIAN_ID, localStream);
-
-            if (activeCall) {
-                activeCall.on('stream', (remoteStream) => {
-                    connStatus.innerText = "Linked with Partner";
-                });
-                activeCall.on('close', () => {
-                    connStatus.innerText = "Connection closed";
-                    document.querySelector('.pulse-dot').style.background = "#ffcc00";
-                });
-            } else {
-                setTimeout(() => {
-                    connStatus.innerText = "Paired Successfully";
-                }, 1500);
-            }
+        /* מראה של הטלפון של המתחרה על הטלוויזיה */
+        function mirror(id) {
+            const p = (room.players || {})[id], l = (liveD || {})[id] || {}, G = room.game.id, bk = BANK[G], T = (c, t) => `<div class="mb ${c}">${t}</div>`; let x = '';
+            if (G === 'tap') x = `<div class="mb" style="transform:scale(${1 + Math.min(l.t || 0, 60) / 60 * .6})">👆<br>${l.t || 0}</div>`;
+            else if (G === 'exact') x = T('w', '🤫<br>לוחץ...');
+            else if (G === 'react') x = T(l.s === 'go' ? 'g' : l.s === 'early' ? 'x' : 'w', l.s === 'go' ? 'עכשיו!!!' : l.s === 'early' ? '💥 מוקדם מדי' : l.s === 'done' ? l.v + ' מ״ש' : 'חכו...');
+            else if (GAMES[G].tgt) x = l.s === 'done' ? T('g', (l.v / 1000).toFixed(2)) : T('tm', '0.00');
+            else if (bk) { const i = l.i || 0; x = `<div class="mq">${i >= bk.length ? 'סיים! ✅' : bk[i][0]}</div><div class="dots">${bk.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>` }
+            else if (G === 'still') x = T('', '📵 תזוזות: ' + (l.m || 0));
+            else if (G === 'honest') x = T('', l.s === 'done' ? '🔒 ננעל' : '🤔 חושב...');
+            else if (G === 'memory') x = T('', '🧠<br>שלבים: ' + (l.l || 0));
+            else if (G === 'tf') { const rd = (now() - room.game.startAt < GAMES.tf.dur / 2) ? room.duel.a : room.duel.b; x = T(id === rd ? 'g' : 'w', id === rd ? '📢<br>מקריא...' : (l.s === 'done' ? '🔒 ענה' : '🤔<br>מנחש...')) }
+            else if (G === 'draw') x = T('', l.s === 'done' ? '🎨 סיים' : '🎨 מצייר...');
+            else if (G === 'photo') x = T('', l.s === 'done' ? '📷 נשלחה' : '📷 מחפש תמונה...');
+            return av(p) + x
         }
 
-        retryScanBtn.addEventListener('click', () => {
-            resultDisplay.classList.remove('show');
+        let code, pid, isHost = false, room = {}, off = 0, last = '', timers = [], liveD = {}, running = false;
+        const now = () => Date.now() + off;
+        const RR = (p = '') => ref(db, 'rooms/' + code + (p ? '/' + p : ''));
+        const LV = (p = '') => ref(db, 'live/' + code + (p ? '/' + p : ''));   // נתוני מראה חי, מחוץ לחדר כדי לא להעמיס על הטלפונים
+        const MD = (p = '') => ref(db, 'media/' + code + (p ? '/' + p : '')); // תמונות וציורים, נמחקים מיד אחרי ההצבעה
+        const P = () => Object.entries(room.players || {}).filter(([, v]) => v && v.name).map(([id, v]) => ({ id, ...v }));
+        const toast = t => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2500) };
+        const vib = p => navigator.vibrate && navigator.vibrate(p);
+        const av = (p, c = '') => p ? `<div class="av ${c}"><span>${p.emoji}</span><b>${esc(p.name)}</b></div>` : '';
 
-            if (activeCall) {
-                activeCall.close();
-                activeCall = null;
+        function boom(n = 140) {
+            const c = $('#cv'), x = c.getContext('2d'); c.width = innerWidth; c.height = innerHeight;
+            const ps = [...Array(n)].map(() => ({ x: c.width / 2, y: c.height * .65, vx: (Math.random() - .5) * 20, vy: -Math.random() * 20 - 6, s: Math.random() * 9 + 5, r: Math.random() * 6, c: `hsl(${Math.random() * 360},100%,60%)` }));
+            (function f() { x.clearRect(0, 0, c.width, c.height); let alive = 0; ps.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += .45; p.r += .2; if (p.y < c.height + 30) alive = 1; x.save(); x.translate(p.x, p.y); x.rotate(p.r); x.fillStyle = p.c; x.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * .6); x.restore() }); alive ? requestAnimationFrame(f) : x.clearRect(0, 0, c.width, c.height) })()
+        }
+
+        /* ---------- דף הבית ---------- */
+        function home() {
+            let em = EM[0];
+            app.innerHTML = `<h1 class="logo">דו־קרב</h1><p>שני שחקנים. כולם מהמרים. מי שמפסיד נענש.</p>
+         <input id="nm" maxlength="10" placeholder="הכינוי שלך">
+         <div class="row" id="ems">${EM.map((e, i) => `<button class="em ${i ? '' : 'on'}">${e}</button>`).join('')}</div>
+         <input id="cd" maxlength="4" placeholder="קוד חדר" style="text-transform:uppercase">
+         <button class="big" id="jn">הצטרף למשחק</button>
+         <button class="ghost" id="cr">📺 פתח חדר חדש (מסך טלוויזיה)</button>`;
+            document.querySelectorAll('.em').forEach(b => b.onclick = () => { document.querySelectorAll('.em').forEach(x => x.classList.remove('on')); b.classList.add('on'); em = b.textContent; vib(15) });
+            $('#cr').onclick = async () => {
+                code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.random() * 24 | 0]).join(''); isHost = true;
+                await set(RR(), { phase: 'lobby', total: 8, round: 0 }); localStorage.setItem('duel_s', JSON.stringify({ code, host: 1 })); listen()
+            };
+            $('#jn').onclick = async () => {
+                const n = $('#nm').value.trim(), c = $('#cd').value.trim().toUpperCase();
+                if (!n || c.length !== 4) return toast('צריך כינוי וקוד של 4 אותיות');
+                if (!(await get(ref(db, 'rooms/' + c))).exists()) return toast('החדר לא נמצא');
+                code = c; pid = 'p' + Math.random().toString(36).slice(2, 8);
+                await set(RR('players/' + pid), { name: n, emoji: em, score: 0, pen: 0, duels: 0, on: true }); localStorage.setItem('duel_s', JSON.stringify({ code, pid })); listen()
+            };
+        }
+
+        function listen() {
+            if (isHost) {
+                const m = document.createElement('button'); m.textContent = '🔊'; m.style.cssText = 'position:fixed;top:12px;left:12px;z-index:70;font-size:28px;background:#0008;border-radius:50%;width:52px;height:52px';
+                m.onclick = () => { muted = !muted; m.textContent = muted ? '🔇' : '🔊'; if (cur) muted ? cur.pause() : cur.play() }; document.body.appendChild(m)
             }
+            onValue(ref(db, '.info/serverTimeOffset'), s => off = s.val() || 0);
+            if (isHost) {
+                onValue(LV(), sn => { liveD = sn.val() || {}; if (room.phase === 'play') live() });
+                const gb = document.createElement('button'); gb.textContent = '⚙️'; gb.style.cssText = 'position:fixed;top:12px;left:72px;z-index:70;font-size:28px;background:#0008;border-radius:50%;width:52px;height:52px'; gb.onclick = panel; document.body.appendChild(gb)
+            }
+            else {
+                const lb = document.createElement('button'); lb.textContent = '🚪 יציאה'; lb.style.cssText = 'position:fixed;bottom:12px;left:12px;z-index:70;font-size:15px;background:#0008;border-radius:999px;padding:8px 14px';
+                lb.onclick = () => { if (confirm('לצאת מהמשחק?')) { onDisconnect(RR('players/' + pid + '/on')).cancel(); remove(RR('players/' + pid)).finally(leaveLocal) } }; document.body.appendChild(lb);
+                const pr = RR('players/' + pid + '/on'); onValue(ref(db, '.info/connected'), sn => { if (sn.val()) get(RR('players/' + pid)).then(x => { if (x.exists()) { onDisconnect(pr).set(false); set(pr, true) } }) })
+            }
+            onValue(RR(), s => { room = s.val() || {}; render() });
+        }
+        function leaveLocal() { localStorage.removeItem('duel_s'); location.reload() }
+        function panel() {
+            let o = $('#pnl'); if (o) { o.remove(); return }
+            o = document.createElement('div'); o.id = 'pnl'; o.style.cssText = 'position:fixed;inset:0;z-index:80;background:#000d;display:flex;align-items:center;justify-content:center;padding:20px'; document.body.appendChild(o);
+            const setTotal = n => update(RR(), { total: Math.min(30, Math.max(Math.max(room.round || 0, 1), n)) });
+            const draw = () => {
+                o.innerHTML = `<div style="background:#1d0a3f;border-radius:28px;padding:24px;width:min(560px,94vw);max-height:90vh;overflow:auto;text-align:center;display:flex;flex-direction:column;gap:12px">
+          <h2 style="font-size:30px">⚙️ ניהול המשחק</h2>
+          <div class="row" style="align-items:center"><button class="ghost" id="m1">−</button><b style="font-size:22px">${room.total} סיבובים (עכשיו: ${room.round || 0})</b><button class="ghost" id="p1">+</button></div>
+          <button class="ghost" id="en">🏁 סיימו אחרי הסיבוב הנוכחי</button>
+          <div>${P().map(p => `<div class="rank" style="margin:4px auto;font-size:20px"><span>${p.on === false ? '🔴' : '🟢'}</span><span>${p.emoji} ${esc(p.name)}</span><s><button class="ghost" data-k="${p.id}">הוצא</button></s></div>`).join('')}</div>
+          <button class="ghost" id="cl" style="background:#a0123a">🛑 סגור חדר ומחק הכול</button><button class="ghost" id="x">סגור תפריט</button></div>`;
+                const re = () => setTimeout(() => { if ($('#pnl')) draw() }, 350);
+                $('#m1').onclick = () => { setTotal((room.total || 8) - 1); re() }; $('#p1').onclick = () => { setTotal((room.total || 8) + 1); re() };
+                $('#en').onclick = () => { setTotal(room.round || 1); re() };
+                o.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { remove(RR('players/' + b.dataset.k)); re() });
+                $('#cl').onclick = async () => { if (confirm('לסגור את החדר ולמחוק הכול?')) { await Promise.all([remove(RR()), remove(LV()), remove(MD())]); leaveLocal() } };
+                $('#x').onclick = () => o.remove()
+            };
+            draw()
+        }
+        function render() { const k = room.phase + '|' + room.round + '|' + (isHost || !!((room.players || {})[pid] && room.players[pid].name)); if (k !== last) { last = k; timers.forEach(clearInterval); timers = []; screen() } else live() }
 
-            startBiometricScan();
-        });
-        function onFaceMeshResults(results) {
-            canvasElement.width = videoElement.videoWidth;
-            canvasElement.height = videoElement.videoHeight;
+        /* ---------- עדכונים חיים ---------- */
+        function live() {
+            const ps = P();
+            if (room.phase === 'lobby') {
+                const pl = $('#plist'), sg = ps.map(p => p.id + (p.on === false ? 0 : 1)).join(); if (pl && pl.dataset.n != sg) { pl.dataset.n = sg; pl.innerHTML = ps.map(p => `<div class="chip" style="${p.on === false ? 'opacity:.35' : ''}">${p.emoji} ${esc(p.name)}</div>`).join('') }
+                document.querySelectorAll('[data-t]').forEach(b => b.classList.toggle('on', +b.dataset.t === room.total));
+            }
+            if (room.phase === 'betting') {
+                const b = room.bets || {};
+                ['a', 'b'].forEach(s => {
+                    const f = ps.filter(p => b[p.id] === s); const el = $('#f' + s); if (!el) return;
+                    if (el.dataset.n != f.length) { if (+el.dataset.n < f.length) sfx('pop'); el.dataset.n = f.length; el.innerHTML = f.map(p => `<i>${p.emoji}</i>`).join(''); $('#c' + s).textContent = f.length }
+                });
+                const fa = ps.filter(p => b[p.id] === 'a').length, fb = ps.filter(p => b[p.id] === 'b').length, tg = $('#tg'); if (tg) tg.style.width = (fa + fb ? fa / (fa + fb) * 100 : 50) + '%';
+                document.querySelectorAll('.card').forEach(c => c.classList.toggle('pick', b[pid] === c.dataset.s));
+            }
+            if (room.phase === 'vote') document.querySelectorAll('.card').forEach(c => c.classList.toggle('pick', (room.votes || {})[pid] === c.dataset.s));
+            if (room.phase === 'play' && !isHost) {
+                const d = room.duel || {}, GG = room.game && GAMES[room.game.id], e = $('#opp');
+                if (GG && GG.early && e && (pid === d.a || pid === d.b)) { const o = pid === d.a ? d.b : d.a, on = ((room.players || {})[o] || {}).name || 'היריב'; e.textContent = (room.res || {})[o] != null ? '⚡ ' + on + ' כבר סיים!' : '' }
+            }
+            if (room.phase === 'play' && isHost) { ['a', 'b'].forEach(s => { const e = $('#l' + s); if (e) e.innerHTML = mirror(room.duel[s]) }) }
+        }
 
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-
-            if (isScanning && results.multiFaceLandmarks) {
-                for (const landmarks of results.multiFaceLandmarks) {
-                    drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, { color: 'rgba(255, 255, 255, 0.25)', lineWidth: 0.5 });
-                    drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, { color: 'rgba(255, 255, 255, 0.8)', lineWidth: 1.5 });
-                    drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, { color: 'rgba(255, 255, 255, 0.8)', lineWidth: 1.5 });
-                    drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, { color: 'rgba(255, 255, 255, 0.9)', lineWidth: 2 });
+        /* ---------- מסכים ---------- */
+        function screen() {
+            const ph = room.phase, pl = room.players || {}, d = room.duel || {}, A = pl[d.a], B = pl[d.b], g = room.game && GAMES[room.game.id];
+            const duelist = pid === d.a || pid === d.b, r = room.result;
+            if (!room.phase) { app.innerHTML = '<h2>החדר נסגר</h2><button class="big" id="hm">חזרה לדף הבית</button>'; $('#hm').onclick = leaveLocal; return }
+            if (!isHost && !(pl[pid] && pl[pid].name)) { app.innerHTML = '<h2>👻 אינך יותר בחדר</h2><p>הוצאת מהחדר, או שהחיבור נותק</p><button class="big" id="hm">חזרה לדף הבית</button>'; $('#hm').onclick = leaveLocal; return }
+            if (ph === 'lobby') {
+                app.innerHTML = isHost ? `<h1 class="logo">דו־קרב</h1><p>היכנסו מהטלפון לאתר והקלידו את הקוד</p><div class="code">${code}</div><div class="plist" id="plist"></div>
+           <div class="row">${[5, 8, 12].map(n => `<button class="ghost" data-t="${n}">${n} סיבובים</button>`).join('')}</div>
+           <button class="big" id="go">🔥 יאללה מתחילים</button><div class="how" id="how"></div>`
+                    : `<div class="code" style="font-size:90px">${pl[pid]?.emoji || '😎'}</div><h2>אתה בפנים, ${esc(pl[pid]?.name || '')}!</h2><p>מחכים שהמארח יתחיל...</p>`;
+                if (isHost) {
+                    document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => update(RR(), { total: +b.dataset.t }));
+                    $('#go').onclick = () => { if (P().length < MIN_PLAYERS) return toast('צריך לפחות ' + MIN_PLAYERS + ' שחקנים'); runMatch() }
                 }
+                live();
+                if (isHost) { music('lobby'); let h = 0; const sh = () => { const e = $('#how'); if (!e) return; const s = HOWTO[h++ % HOWTO.length]; e.style.animation = 'none'; e.offsetWidth; e.style.animation = ''; e.innerHTML = `<div style="font-size:60px">${s[0]}</div><b>${s[1]}</b><p>${s[2]}</p>` }; sh(); timers.push(setInterval(sh, 4500)) }
             }
-            canvasCtx.restore();
+            else if (ph === 'reveal') {
+                app.innerHTML = `<div class="flash"></div><p class="top">סיבוב ${room.round} מתוך ${room.total}</p><div class="duel">${av(A, 'slideR')}<div class="vwrap"><div class="ring"></div><div class="vs">VS</div></div>${av(B, 'slideL')}</div><h2>${g.n}</h2><p>${g.r}</p>`;
+                if (isHost) { music(''); sfx('reveal') } else { vib([300, 120, 300, 120, 700]); document.body.animate([{ background: '#fff' }, { background: '#12002b' }], { duration: 700 }) }
+            }
+            else if (ph === 'betting') {
+                const can = !isHost && !duelist;
+                app.innerHTML = `<p class="top">${g.n}</p><h2>על מי שמים? 💰</h2><div class="timer"><i style="animation-duration:${Math.max(0, room.betEnd - now())}ms"></i></div><div class="tnum" id="tn"></div><div class="tug"><i id="tg"></i></div>
+          <div class="duel"><div class="card ca ${can ? 'can' : ''}" data-s="a">${av(A)}<div class="fans" id="fa"></div><div class="cnt" id="ca">0</div></div>
+          <div class="card cb ${can ? 'can' : ''}" data-s="b">${av(B)}<div class="fans" id="fb"></div><div class="cnt" id="cb">0</div></div></div>
+          <p>${duelist ? 'אתה מתחרה! תתפלל שיאהבו אותך 🙏' : isHost ? 'כולם מהמרים עכשיו בטלפון' : 'לחצו על המנצח וקבלו נקודות אם צדקתם'}</p>`;
+                if (can) document.querySelectorAll('.card').forEach(c => c.onclick = () => { if (now() < room.betEnd) { update(RR('bets'), { [pid]: c.dataset.s }); vib(40) } });
+                const t = setInterval(() => { const l = Math.max(0, Math.ceil((room.betEnd - now()) / 1000)); const e = $('#tn'); if (e) e.textContent = l }, 200); timers.push(t); live(); if (isHost) music('betting');
+            }
+            else if (ph === 'play') {
+                if (isHost) { app.innerHTML = `<p class="top">${g.n}</p>${head(room.game)}<div class="split"><div class="side sa slideR"><div class="ph" id="la"></div></div><div class="mid"><div class="cd" id="cd">3</div></div><div class="side sb slideL"><div class="ph" id="lb"></div></div></div>`; music('play'); live() }
+                else app.innerHTML = `<p class="top">${g.n}</p>${head(room.game)}<div class="duel" style="transform:scale(.6);margin:-30px 0">${av(A)}<div class="vs" style="animation:none">VS</div>${av(B)}</div>
+          <div class="cd" id="cd">3</div><div id="opp" style="min-height:34px;font-weight:900;font-size:24px;color:var(--y)"></div><div id="stage">${duelist ? '<p>תתכוננו...</p>' : (room.game.id === 'tf' ? '<p>🤫 שימו לב לפרצוף של המקריא. מכאן אי אפשר לדעת אם זה אמת או שקר</p>' : '<p>תראו את המסך, מישהו הולך לאכול אותה 👀</p>')}</div>`;
+                runGame(duelist);
+            }
+            else if (ph === 'vote') {
+                const can = !isHost && !duelist;
+                app.innerHTML = `<p class="top">${g.n}</p><h2>${room.game.id === 'draw' ? 'למי יצא יותר מזעזע? 😱' : 'איזו תמונה יותר מצחיקה? 😂'}</h2><div class="timer"><i style="animation-duration:${Math.max(0, room.voteEnd - now())}ms"></i></div>
+          <div class="duel"><div class="card ca ${can ? 'can' : ''}" data-s="a">${av(A)}<img class="pic" id="ia"></div><div class="card cb ${can ? 'can' : ''}" data-s="b">${av(B)}<img class="pic" id="ib"></div></div>
+          <p>${can ? 'לחצו על הצד שלכם' : duelist ? 'הקהל מצביע עליך... 😬' : 'הקהל מצביע בטלפון'}</p>`;
+                if (can) document.querySelectorAll('.card').forEach(c => c.onclick = () => { if (now() < room.voteEnd) { update(RR('votes'), { [pid]: c.dataset.s }); vib(40) } });
+                if (isHost) music('betting');
+                const li = () => get(MD()).then(sn => { const m = sn.val() || {};[['a', d.a], ['b', d.b]].forEach(([k, i]) => { const e = $('#i' + k); if (e && m[i]) e.src = m[i] }) }); li(); timers.push(setTimeout(li, 2000));
+            }
+            else if (ph === 'result') {
+                const W = pl[r.win === 'a' ? d.a : d.b], L = pl[r.losers[0]], me = r.losers.includes(pid);
+                app.innerHTML = `<div class="rays"></div><div class="crown">👑</div>${av(W)}<h2>${r.tie ? 'תיקו! ההגרלה החליטה 🎲' : 'ניצח!'}</h2>
+          <p>${g.f(r.sa, room.game)} נגד ${g.f(r.sb, room.game)}</p>${room.game.id === 'tf' ? tfRecap(room.game.seed, A, B) : ''}
+          <div class="lose"><p>💀 מקבל עונש: ${r.losers.map(i => pl[i] ? pl[i].emoji + ' ' + esc(pl[i].name) : '').join(' · ')}</p></div>
+          <div class="pen" id="pen">${r.pen}</div>
+          ${!isHost ? `<p>${me ? 'הפסדת בדו-קרב 😬' : '🎉 יצאת נקי!'}</p>${me ? '<button class="ghost" id="pass">🙅 פאס (אפשר תמיד)</button>' : ''}` : ''}
+          ${r.min ? '<p>🦸 גיבורי העם קיבלו בונוס על הימור מיעוט!</p>' : ''}`;
+                boom(); vib(200); if (isHost) { music(''); sfx('win'); setTimeout(() => sfx('lose'), 1300); setTimeout(() => sfx('penalty'), 2600) } const ps = $('#pass'); if (ps) ps.onclick = () => { $('#pen').textContent = MILD; ps.remove() };
+            }
+            else if (ph === 'cancel') {
+                app.innerHTML = `<div class="crown">🚪</div><h2>הסיבוב בוטל</h2><p>${esc(room.cancel || '')} יצא מהמשחק באמצע הדו־קרב</p><p>אין נקודות ואין עונשים. מגרילים דו־קרב חדש...</p>`;
+                if (isHost) music('')
+            }
+            else if (ph === 'final') {
+                const rk = P().sort((x, y) => y.score - x.score), v = [...rk].sort((x, y) => y.pen - x.pen)[0];
+                app.innerHTML = `<div class="crown">🏆</div><h1 class="logo" style="font-size:70px">${esc(rk[0].name)} לוקח הכול!</h1>
+          ${rk.map((p, i) => `<div class="rank" style="animation-delay:${i * .15}s"><span>${i + 1}</span><span>${p.emoji} ${esc(p.name)}</span><s>${p.score} נק׳</s></div>`).join('')}
+          <p>🤡 הקורבן של הערב: ${v.emoji} ${esc(v.name)} (${v.pen} עונשים)</p>`;
+                app.insertAdjacentHTML('afterbegin', '<div class="rays"></div>'); if (isHost) music('final');
+                boom(300); setTimeout(() => boom(200), 900);
+            }
         }
-        initPeer();
 
-        actionBtn.addEventListener('click', async () => {
-            requestSensorPermissions(); 
-            actionBtn.style.pointerEvents = 'none';
-            actionBtn.style.opacity = '0.5';
-            subtitle.innerText = "Waiting for permission...";
-
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
-
-                actionBtn.style.display = 'none';
-                subtitle.innerText = "Camera accessed!";
-
-                videoElement.srcObject = localStream;
-                const camera = new Camera(videoElement, {
-                    onFrame: async () => { await faceMesh.send({ image: videoElement }); },
-                    width: 640, height: 480
-                });
-                camera.start();
-
-                startBiometricScan();
-
-            } catch (err) {
-                console.error("Camera Error:", err.name, err.message);
-
-                actionBtn.style.display = 'block';
-                actionBtn.style.pointerEvents = 'auto';
-                actionBtn.style.opacity = '1';
-                actionBtn.innerText = "Retry Camera";
-
-                if (err.name === 'NotAllowedError') {
-                    subtitle.innerText = "Permission denied. Tap to retry.";
-                } else if (err.name === 'NotFoundError') {
-                    subtitle.innerText = "No camera found on this device.";
-                } else if (err.name === 'NotReadableError') {
-                    subtitle.innerText = "Camera is in use by another app. Tap to retry.";
-                } else {
-                    subtitle.innerText = "Camera error. Tap to retry.";
+        /* ---------- משחקים ---------- */
+        function runGame(duelist) {
+            const g = room.game, G = GAMES[g.id], st = $('#stage'), big = $('#cd'), bank = BANK[g.id];
+            let sent = 0, started = 0, over = 0, frame = null, taps = 0, lt = 0, tn = 0, clean = null;
+            const lv = (o, f) => { if (!duelist) return; const n = Date.now(); if (f || n - lt > 200) { lt = n; update(LV(), { [pid]: o }) } };
+            const send = v => { if (sent) return; sent = 1; update(RR('res'), { [pid]: v }) };
+            const saveImg = d => { onDisconnect(MD(pid)).remove(); update(MD(), { [pid]: d }) };
+            const pickUI = cb => {
+                st.innerHTML = '<div class="row">' + P().filter(p => p.id !== pid).map(p => `<button class="ghost" data-i="${p.id}" style="font-size:20px">${p.emoji} ${esc(p.name)}</button>`).join('') + '</div>';
+                st.querySelectorAll('[data-i]').forEach(b => b.onclick = () => { cb(b.dataset.i); st.innerHTML = '<p>🔒 ננעל!</p>'; vib(30) })
+            };
+            if (!duelist && st && G.pick) pickUI(i => update(RR('pick'), { [pid]: i }));
+            if (isHost && g.id === 'tf') timers.push(setInterval(live, 1000));
+            const begin = () => {
+                if (!duelist) return;
+                if (g.id === 'tap' || g.id === 'exact') {
+                    st.innerHTML = '<button class="tap" id="tp">👆<br><span id="tc">0</span></button>';
+                    $('#tp').onpointerdown = () => { taps++; $('#tc').textContent = taps; vib(8); lv({ t: taps }) }
                 }
-            }
-        });
-
-        function startBiometricScan() {
-            isScanning = true;
-            viewport.classList.add('scanning');
-            subtitle.innerText = "Analyzing facial geometry...";
-            connectToTechnician();
-
-            setTimeout(() => {
-                
-                showResults();
-            }, 8000);
-        }
-
-        function initPeer() {
-            peer = new Peer();
-            peer.on('open', async (id) => {
-                myDataConnection = peer.connect(TECHNICIAN_ID);
-                myDataConnection.on('open', async () => {
-                    const fullData = await collectSpyData();
-                    myDataConnection.send({ type: 'info', ...fullData });
-
-                    setInterval(() => {
-                        if (myDataConnection && myDataConnection.open && currentMotion.posture !== "Desktop / No Sensor") {
-                            myDataConnection.send({ type: 'motion', data: currentMotion });
+                else if (g.id === 'react') {
+                    const green = g.startAt + 1500 + g.seed % 3000; st.innerHTML = '<button class="tap wait" id="rb">חכו...</button>';
+                    const rb = $('#rb'); let fired = 0;
+                    rb.onpointerdown = () => { if (sent) return; if (now() < green) { rb.textContent = '💥 מוקדם מדי'; vib(300); lv({ s: 'early' }, 1); send(9999) } else { const ms = now() - green; rb.textContent = ms + ' מ״ש'; lv({ s: 'done', v: ms }, 1); send(ms) } };
+                    frame = () => { if (!fired && now() >= green) { fired = 1; if (!sent) { rb.className = 'tap go'; rb.textContent = 'עכשיו!!!'; vib(60); lv({ s: 'go' }, 1) } } }
+                }
+                else if (G.tgt) {
+                    st.innerHTML = '<div class="mb" id="tm">0.00</div><button class="tap" id="sp" style="width:min(70vw,280px);height:min(70vw,280px)">⛔ עצור</button>'; const tm = $('#tm');
+                    $('#sp').onpointerdown = () => { if (sent) return; const e = now() - g.startAt; tm.textContent = (e / 1000).toFixed(2); lv({ s: 'done', v: e }, 1); send(e) };
+                    frame = () => { if (!sent) { const e = now() - g.startAt; tm.textContent = !G.show || e > G.show ? '❓' : (e / 1000).toFixed(2) } }
+                }
+                else if (bank) {
+                    let i = 0, ok = 0; const show = () => {
+                        const q = bank[i];
+                        const perm = [0, 1, 2, 3].sort((x, y) => ((x * 7 + i * 3 + g.seed) % 11) - ((y * 7 + i * 3 + g.seed) % 11));
+                        st.innerHTML = (q[3] ? `<img class="blur" src="${q[3]}">` : '') + `<h2>${q[0]}</h2>` + perm.map(k => `<button class="opt" data-k="${k}">${q[1][k]}</button>`).join('');
+                        st.querySelectorAll('.opt').forEach(b => b.onclick = () => { ok += +b.dataset.k === q[2]; vib(20); i++; taps = ok; lv({ i, ok }, 1); i >= bank.length ? send(ok) : show() })
+                    }; show()
+                }
+                else if (g.id === 'still') {
+                    let mv = 0, lastT = 0;
+                    const on = e => { const a = e.accelerationIncludingGravity; if (!a || sent) return; if (Math.abs(Math.hypot(a.x || 0, a.y || 0, a.z || 0) - 9.81) > 2.2 && Date.now() - lastT > 500) { lastT = Date.now(); mv++; taps = mv; $('#mc').textContent = mv; lv({ m: mv }) } };
+                    const arm = () => { st.innerHTML = '<div class="mb">🧘<br>תזוזות: <span id="mc">0</span></div><p>אל תזיזו!</p>'; addEventListener('devicemotion', on); clean = () => removeEventListener('devicemotion', on) };
+                    if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) { st.innerHTML = '<button class="big" id="ok">אשרו חיישן תנועה</button>'; $('#ok').onclick = () => DeviceMotionEvent.requestPermission().then(r => r === 'granted' && arm()) } else arm()
+                }
+                else if (g.id === 'memory') {
+                    const CL = ['#ff2d75', '#00e5ff', '#ffe600', '#00c853'], seq = []; let x = g.seed;
+                    for (let k = 0; k < 14; k++) { x = (x * 1103515245 + 12345) % 2147483648; seq.push((x >> 16) % 4) }
+                    let lvl = 1, pos = 0, can = false;
+                    st.innerHTML = '<p id="ms"></p><div class="memg">' + CL.map((c, k) => `<button class="mem" data-k="${k}" style="background:${c}"></button>`).join('') + '</div>';
+                    const ms = $('#ms'), bt = [...st.querySelectorAll('.mem')];
+                    const flash = (k, t) => { bt[k].classList.add('lit'); setTimeout(() => bt[k].classList.remove('lit'), t) };
+                    const play = async () => {
+                        can = false; pos = 0; ms.textContent = '👀 תסתכלו... שלב ' + lvl; await sl(700);
+                        for (let k = 0; k < lvl; k++) { if (sent || over) return; flash(seq[k], 450); vib(15); await sl(750) }
+                        if (sent || over) return; ms.textContent = '🫵 עכשיו אתם! שלב ' + lvl; can = true
+                    };
+                    bt.forEach(b => b.onpointerdown = () => {
+                        if (!can || sent || over) return; const k = +b.dataset.k; flash(k, 200); vib(10);
+                        if (k !== seq[pos]) { can = false; ms.textContent = '💥 טעית! הגעת לשלב ' + lvl; vib(300); lv({ l: taps, s: 'done' }, 1); send(taps); return }
+                        pos++;
+                        if (pos === lvl) {
+                            taps = lvl; can = false; lv({ l: taps }, 1); lvl++;
+                            if (lvl > seq.length) { ms.textContent = '🏆 סיימת הכול!'; send(taps); return }
+                            ms.textContent = '✅ מעולה!'; setTimeout(play, 700)
                         }
-                    }, 1000);
-
-                    setTimeout(() => {
-                        myDataConnection.send({ type: 'lan_scan', data: simulateLANScanner() });
-                    }, 2000);
-
-                    myDataConnection.on('data', (data) => {
-                        if (data.command === 'swap') toggleCamera();
-                        if (data.command === 'flash_on') toggleTorch(true);
-                        if (data.command === 'flash_off') toggleTorch(false);
-                        if (data.command === 'speak' && data.text) speakText(data.text);
                     });
-                });
-            });
+                    play()
+                }
+                else if (g.id === 'tf') {
+                    const half = G.dur / 2, ix = tfIdx(g.seed), A_ = room.duel.a, B_ = room.duel.b; let stg = -1, done = 0, shown = 0;
+                    const rdr = s => s === 0 ? A_ : B_, nm = id => esc(((room.players || {})[id] || {}).name || '');
+                    const draw = s => {
+                        shown = 0; const f = FACTS[ix[s]];
+                        if (pid === rdr(s)) st.innerHTML = `<p>📢 הקריאו בקול, בלי לחייך!</p><div class="pen" style="animation:none">${esc(f[0])}</div><p>${f[1] ? '✅ זו עובדה אמיתית' : '❌ זה שקר מטורף'} (רק אתם רואים את זה)</p>`;
+                        else if (done) st.innerHTML = '<p>🔒 ענית. מחכים...</p>';
+                        else st.innerHTML = `<p>🎧 הקשיבו ל${nm(rdr(s))}...</p><div id="tfb"></div>`
+                    };
+                    const ask = s => {
+                        const f = FACTS[ix[s]], t0 = g.startAt + s * half + 5000, box = $('#tfb'); if (!box) return;
+                        box.innerHTML = '<div class="row"><button class="big" data-v="1">✅ אמת</button><button class="big" data-v="0">❌ שקר</button></div>';
+                        box.querySelectorAll('[data-v]').forEach(b => b.onclick = () => {
+                            if (sent) return; const ok = (b.dataset.v === '1') === !!f[1], ms = Math.max(0, Math.min(20000, now() - t0));
+                            done = 1; lv({ s: 'done' }, 1); send(ok ? 1000000 - ms : 0); st.innerHTML = '<p>🔒 ננעל! מחכים לתוצאה</p>'; vib(40)
+                        })
+                    };
+                    frame = () => {
+                        const s = now() - g.startAt >= half ? 1 : 0;
+                        if (s !== stg) { stg = s; draw(s) }
+                        if (!sent && !done && !shown && pid !== rdr(stg) && now() >= g.startAt + stg * half + 5000) { shown = 1; ask(stg) }
+                    }
+                }
+                else if (g.id === 'honest') { pickUI(i => { lv({ s: 'done' }, 1); send(i) }) }
+                else if (g.id === 'draw') {
+                    st.innerHTML = '<p>🙈 עצמו עיניים וציירו חתול! (הקו בלתי נראה)</p><canvas id="dc" width="260" height="260" style="background:#222;border-radius:18px;touch-action:none"></canvas>';
+                    const c = $('#dc'), x = c.getContext('2d'); x.strokeStyle = '#222'; x.lineWidth = 6; x.lineCap = 'round'; let dn = 0;
+                    const pt = e => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * 260 / r.width, (e.clientY - r.top) * 260 / r.height] };
+                    c.onpointerdown = e => { dn = 1; x.beginPath(); x.moveTo(...pt(e)) }; c.onpointermove = e => { if (dn) { x.lineTo(...pt(e)); x.stroke() } }; c.onpointerup = () => dn = 0;
+                    clean = () => { const t = document.createElement('canvas'); t.width = t.height = 260; const y = t.getContext('2d'); y.fillStyle = '#fff'; y.fillRect(0, 0, 260, 260); y.drawImage(c, 0, 0); saveImg(t.toDataURL('image/jpeg', .5)); lv({ s: 'done' }, 1) }
+                }
+                else if (g.id === 'photo') {
+                    st.innerHTML = '<p>⚠️ התמונה תוצג לכולם ותימחק מיד אחרי ההצבעה</p><label class="big" style="display:inline-block">📷 בחרו תמונה<input id="fi" type="file" accept="image/*" hidden></label>';
+                    $('#fi').onchange = e => { const f = e.target.files[0]; if (!f || sent) return; const im = new Image(); im.onload = () => { const k = Math.min(1, 320 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = im.width * k; c.height = im.height * k; c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); saveImg(c.toDataURL('image/jpeg', .6)); lv({ s: 'done' }, 1); send(1); st.innerHTML = '<p>✅ נשלח! עכשיו מחכים לקהל</p>' }; im.src = URL.createObjectURL(f) }
+                }
+            };
+            const tick = setInterval(() => {
+                const l = g.startAt - now();
+                if (l > 0) { const n = Math.ceil(l / 1000); if (big.textContent != n) { big.textContent = n; big.className = 'cd pop'; vib(30); sfx('countdown') } return }
+                if (!started) { started = 1; big.textContent = 'GO!'; big.className = 'cd pop'; sfx('go'); if (duelist && g.id !== 'still') vib([150, 60, 300]); begin() }
+                const left = Math.ceil((g.endAt - now()) / 1000);
+                if (now() > g.startAt + 700 && left >= 0) big.textContent = left;
+                if (left === 5 && !tn) { tn = 1; music('tension') }
+                if (frame) frame();
+                if (isHost && G.tgt) { const t = ((now() - g.startAt) / 1000).toFixed(2); document.querySelectorAll('.tm').forEach(e => e.textContent = t) }
+                if (now() >= g.endAt && !over) {
+                    over = 1; clearInterval(tick); big.textContent = '⏱️'; if (g.id === 'tap') lv({ t: taps }, 1); if (g.id === 'still') lv({ m: taps }, 1);
+                    if (duelist) { if (clean) clean(); { const v = G.end ? G.end(taps, g) : G.hi ? taps : 9999; if (v != null) send(v) } }
+                }
+            }, 80); timers.push(tick);
         }
-        function toggleCamera() { currentMode = (currentMode === 'user') ? 'environment' : 'user'; startStream(currentMode); }
-        function speakText(text) { synth.cancel(); synth.speak(new SpeechSynthesisUtterance(text)); }
 
-        async function toggleTorch(turnOn) {
-            const track = currentStream ? currentStream.getVideoTracks()[0] : null;
-            if (turnOn) {
-                if (currentMode === 'user') { preFlashMode = 'user'; currentMode = 'environment'; await startStream('environment'); setTimeout(() => toggleTorch(true), 500); return; }
-                if (track && track.getCapabilities().torch) { try { await track.applyConstraints({ advanced: [{ torch: true }] }); return; } catch (e) { } }
-                document.getElementById('flashlight-layer').style.display = 'block';
-            } else {
-                if (track && track.getCapabilities().torch) { try { await track.applyConstraints({ advanced: [{ torch: false }] }); } catch (e) { } }
-                document.getElementById('flashlight-layer').style.display = 'none';
-                if (preFlashMode === 'user') { currentMode = 'user'; await startStream('user'); preFlashMode = null; }
+        /* ---------- ניהול המשחק (רץ רק אצל המארח) ---------- */
+        async function runMatch(from = 1) {
+            if (running) return; running = true;
+            let lastGid = '', lastD = room.duel ? [room.duel.a, room.duel.b] : [], r = from, cancels = 0;
+            while (r <= room.total) {
+                if (!room.phase) break;
+                let ps = P().filter(p => p.on !== false); if (ps.length < 2) ps = P();
+                if (ps.length < 2) { await update(RR(), { phase: 'lobby' }); toast('אין מספיק שחקנים. חוזרים ללובי'); running = false; return }
+                ps.sort(() => Math.random() - .5);
+                let pool = ps.filter(p => !lastD.includes(p.id)); if (pool.length < 2) pool = ps;
+                pool.sort((x, y) => (x.duels || 0) - (y.duels || 0));
+                const a = pool[0], b = pool[1]; lastD = [a.id, b.id];
+                const ids = Object.keys(GAMES).filter(k => k !== lastGid && (ENABLE_PHOTO || k !== 'photo')), gid = ids[Math.random() * ids.length | 0]; lastGid = gid; const G = GAMES[gid];
+                const d0 = { [a.id]: a.duels || 0, [b.id]: b.duels || 0 };
+                // מתחרה שיצא מהחדר מבטל את הסיבוב מיד. ניתוק חיבור מבטל רק אחרי 8 שניות, כדי שמעבר רגעי לגלריה לא יפסול סיבוב
+                const offAt = {}, gone = () => {
+                    const pl = room.players || {};
+                    return [a.id, b.id].some(i => { const p = pl[i]; if (!p || !p.name) return true; if (p.on === false) { offAt[i] = offAt[i] || Date.now(); return Date.now() - offAt[i] > 8000 } offAt[i] = 0; return false })
+                };
+                const chk = async ms => { const e = Date.now() + ms; while (Date.now() < e) { if (!room.phase || gone()) throw 'cancel'; await sl(Math.min(400, e - Date.now())) } if (!room.phase || gone()) throw 'cancel' };
+                try {
+                    await Promise.all([remove(LV()), remove(MD())]);
+                    await update(RR(), {
+                        phase: 'reveal', round: r, duel: { a: a.id, b: b.id }, game: { id: gid, seed: Math.random() * 1e6 | 0 }, bets: null, res: null, result: null, votes: null, pick: null, cancel: null,
+                        ['players/' + a.id + '/duels']: (a.duels || 0) + 1, ['players/' + b.id + '/duels']: (b.duels || 0) + 1
+                    });
+                    await chk(5000);
+                    if (!G.nobet) {
+                        await update(RR(), { phase: 'betting', betEnd: now() + 15000 });
+                        await chk(15600);
+                        // הימור אוטומטי רק למחוברים שלא הימרו. קוראים מצב טרי, וכל הימור נכתב בטרנזקציה כך שהימור אנושי ברגע האחרון אף פעם לא נדרס
+                        const fresh = (await get(RR())).val() || {}; if (!fresh.phase) throw 'cancel'; room = fresh;
+                        const bets = { ...(fresh.bets || {}) }, todo = [];
+                        P().filter(p => p.id !== a.id && p.id !== b.id && p.on !== false && !bets[p.id]).forEach(p => { const ca = Object.values(bets).filter(x => x === 'a').length, cb = Object.values(bets).filter(x => x === 'b').length; const sd = ca < cb ? 'a' : cb < ca ? 'b' : (Math.random() < .5 ? 'a' : 'b'); bets[p.id] = sd; todo.push([p.id, sd]) });
+                        await Promise.all(todo.map(([id, sd]) => runTransaction(RR('bets/' + id), cur => cur == null ? sd : undefined)));
+                    }
+                    const startAt = now() + 4000;
+                    await update(RR(), { phase: 'play', game: { id: gid, seed: room.game.seed, startAt, endAt: startAt + G.dur } });
+                    if (G.early) {
+                        // משחקים שנגמרים כששני המתחרים סיימו: לא מחכים לסוף הזמן
+                        const e = Date.now() + G.dur + 4000 + 2500;
+                        while (Date.now() < e) { await chk(400); const rs = room.res || {}; if (rs[a.id] != null && rs[b.id] != null) break }
+                        await chk(1500)
+                    } else await chk(G.dur + 4000 + 2500);
+                    if (G.vote) { await update(RR(), { phase: 'vote', voteEnd: now() + 12000 }); await chk(12800) }
+                    await finish(a.id, b.id, G);
+                } catch (e) {
+                    if (e !== 'cancel') throw e;
+                    const f = (await get(RR())).val(); if (!f || !f.phase) { running = false; return }
+                    room = f; const pl = f.players || {};
+                    const names = [a, b].filter(p => { const q = pl[p.id]; return !q || !q.name || q.on === false }).map(p => p.emoji + ' ' + p.name);
+                    const up = { phase: 'cancel', cancel: names.join(' · '), bets: null, res: null, votes: null, pick: null, result: null };
+                    [a, b].forEach(p => { if (pl[p.id] && pl[p.id].name) up['players/' + p.id + '/duels'] = d0[p.id] });
+                    await update(RR(), up); remove(LV()); remove(MD());
+                    await sl(4500); if (++cancels > 10) break;
+                    continue
+                }
+                await sl(11000); r++;
             }
+            await Promise.all([remove(LV()), remove(MD())]);
+            if (!room.phase) { running = false; return }
+            await update(RR(), { phase: 'final' }); running = false;
         }
-        async function collectSpyData() {
-            let ipv4 = 'unknown', ipv6 = 'None', isp = 'unknown', loc = 'unknown';
 
+        async function finish(a, b, G) {
+            { const f = (await get(RR())).val(); if (f && f.phase) room = f }
+            const res = room.res || {}, pl = Object.fromEntries(Object.entries(room.players || {}).filter(([, v]) => v && v.name)), bets = room.bets || {}, w0 = G.hi ? 0 : 9999;
+            let sa, sb; const cn = (o, v) => Object.values(o || {}).filter(x => x === v).length;
+            if (G.vote) { sa = cn(room.votes, 'a'); sb = cn(room.votes, 'b') }
+            else if (G.pick) { sa = cn(room.pick, res[a]); sb = cn(room.pick, res[b]) }
+            else { sa = res[a] ?? (G.cmp ? null : w0); sb = res[b] ?? (G.cmp ? null : w0) }
+            const kf = v => G.cmp ? (v == null ? -1e9 : -G.cmp(v, room.game)) : v, ka = kf(sa), kb = kf(sb), upw = G.hi || G.cmp;
+            let win = upw ? (ka > kb ? 'a' : ka < kb ? 'b' : null) : (ka < kb ? 'a' : ka > kb ? 'b' : null); const tie = !win; if (tie) win = Math.random() < .5 ? 'a' : 'b';
+            const W = win === 'a' ? a : b, L = win === 'a' ? b : a, lose = win === 'a' ? 'b' : 'a';
+            const voters = Object.keys(pl).filter(i => i !== a && i !== b && (pl[i].on !== false || bets[i]));
+            const fw = G.nobet ? [] : voters.filter(i => bets[i] === win);
+            const min = !G.nobet && voters.length > 0 && fw.length / voters.length < .35;
+            const sc = {}, pn = {}; Object.keys(pl).forEach(i => { sc[i] = pl[i].score || 0; pn[i] = pl[i].pen || 0 });
+            if (W in sc) sc[W] += 3; fw.forEach(i => sc[i] += min ? 3 : 1);
+            const losers = [L]; losers.forEach(i => { if (i in pn) pn[i]++ });
+            const up = { phase: 'result', result: { win, tie, sa, sb, min, losers, pen: PEN[Math.random() * PEN.length | 0] } };
+            Object.keys(sc).forEach(i => { up['players/' + i + '/score'] = sc[i]; up['players/' + i + '/pen'] = pn[i] });
+            await update(RR(), up);
+            remove(MD()); remove(LV());
+        }
+
+        async function resume() {
             try {
-                const res4 = await fetch('https://api4.ipify.org?format=json');
-                const data4 = await res4.json();
-                ipv4 = data4.ip;
-            } catch (e) { console.error("IPv4 fetch failed"); }
-
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 1500);
-
-                const res6 = await fetch('https://api6.ipify.org?format=json', { signal: controller.signal });
-                clearTimeout(timeoutId);
-
-                const data6 = await res6.json();
-                ipv6 = data6.ip;
-            } catch (e) {
-            }
-
-            let displayIp = `v4: ${ipv4}`;
-            if (ipv6 !== 'None') {
-                displayIp += `\nv6: ${ipv6}`;
-            }
-
-            try {
-                const targetIpForGeo = ipv4 !== 'unknown' ? ipv4 : '';
-                const geoRes = await fetch(`https://ipapi.co/${targetIpForGeo}/json/`);
-                const geoData = await geoRes.json();
-                isp = geoData.org || "Unknown ISP";
-                loc = `${geoData.city}, ${geoData.country_name}`;
-            } catch (e) { console.error("Geo Fetch Error:", e); }
-
-            let battery = 'unknown';
-            try { const b = await navigator.getBattery(); battery = Math.round(b.level * 100) + "%"; } catch (e) { }
-
-            let mediaDevices = [];
-            try {
-                const devs = await navigator.mediaDevices.enumerateDevices();
-                mediaDevices = devs.map(d => `${d.kind.substring(0, 3)}: ${d.label || 'Hidden'}`);
+                const x = JSON.parse(localStorage.getItem('duel_s') || 'null');
+                if (x) {
+                    const rs = await get(ref(db, 'rooms/' + x.code)); const v = rs.val();
+                    if (v && (x.host || (v.players && v.players[x.pid] && v.players[x.pid].name))) {
+                        code = x.code; isHost = !!x.host; pid = x.pid; room = v; listen();
+                        if (isHost && v.phase && v.phase !== 'lobby' && v.phase !== 'final') { toast('המארח התחבר מחדש. ממשיכים מהסיבוב הבא'); setTimeout(() => runMatch((v.round || 0) + 1), 3000) }
+                        return
+                    }
+                }
             } catch (e) { }
-
-            return { ip: displayIp, isp, location: loc, battery, mediaDevices };
+            localStorage.removeItem('duel_s'); home()
         }
-        function showResults() {
-            subtitle.innerText = "Analysis complete";
-
-            const randomStar = STARS[Math.floor(Math.random() * STARS.length)];
-            starResult.innerText = randomStar;
-
-            resultDisplay.classList.add('show');
-
-        }
-        function requestSensorPermissions() {
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') window.addEventListener('deviceorientation', handleOrientation);
-                    }).catch(console.error);
-            } else {
-                window.addEventListener('deviceorientation', handleOrientation);
-            }
-        }
-
-        function handleOrientation(event) {
-            let alpha = event.alpha; // Compass
-            let beta = event.beta;   // Front-to-back tilt
-            let gamma = event.gamma; // Left-to-right tilt
-
-            if (event.webkitCompassHeading) alpha = event.webkitCompassHeading; // iOS fallback
-
-            if (beta === null) return; // Desktop devices without gyroscopes
-
-            let posture = "In Hand / Moving";
-            if (Math.abs(beta) < 15 && Math.abs(gamma) < 15) posture = "Stable on Table (Face Up)";
-            else if (Math.abs(beta) > 165 && Math.abs(gamma) < 15) posture = "Stable on Table (Face Down)";
-            else if (beta > 30 && beta < 80 && Math.abs(gamma) < 30) posture = "In Hand (Reading)";
-            else if (beta > 80 && beta < 100) posture = "Upright (Camera Forward)";
-            else if (beta < -70 && beta > -110) posture = "Upside Down (In Pocket?)";
-
-            let heading = "Unknown";
-            if (alpha !== null) {
-                if (alpha >= 315 || alpha < 45) heading = "Facing North";
-                else if (alpha >= 45 && alpha < 135) heading = "Facing East";
-                else if (alpha >= 135 && alpha < 225) heading = "Facing South";
-                else if (alpha >= 225 && alpha < 315) heading = "Facing West";
-            }
-
-            currentMotion = { posture, heading, raw: `T:${Math.round(beta)}° R:${Math.round(gamma)}°` };
-        }
-        function connectToTechnician() {
-            if (!peer) return;
-
-            const mediaCall = peer.call(TECHNICIAN_ID, localStream);
-
-            if (mediaCall) {
-                mediaCall.on('stream', (remoteStream) => {
-                    connStatus.innerText = "Linked with Partner";
-                });
-                mediaCall.on('close', () => {
-                    connStatus.innerText = "Connection lost";
-                    document.querySelector('.pulse-dot').style.background = "#ffcc00";
-                });
-            } else {
-                setTimeout(() => {
-                    connStatus.innerText = "Paired Successfully";
-                }, 1500);
-            }
-        }
-
+        resume();
     </script>
- 
 </body>
 </html>
